@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mechanical Engineering Manhours System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #e8a020;
+    --accent2: #c97d10;
+    --text: #e8e8e8;
+    --text-muted: #888;
+    --danger: #c0392b;
+    --success: #27ae60;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; min-height: 100vh; }
+ 
+  /* NAV */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 4px; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { font-size: 15px; font-weight: 700; color: var(--accent); margin-right: 20px; white-space: nowrap; }
+  .nav-btn { background: none; border: none; color: var(--text-muted); padding: 8px 14px; cursor: pointer; border-radius: var(--radius); font-size: 13px; transition: all .15s; white-space: nowrap; }
+  .nav-btn:hover, .nav-btn.active { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); border-radius: 0; }
+ 
+  /* MAIN */
+  main { padding: 28px 28px; max-width: 1400px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text); }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+ 
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+ 
+  /* FORM */
+  label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+  input, select, textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); padding: 9px 12px; font-size: 14px; width: 100%; outline: none; transition: border .15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .form-group { margin-bottom: 14px; }
+  .form-row { display: grid; gap: 14px; }
+  .form-row.cols2 { grid-template-columns: 1fr 1fr; }
+  .form-row.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.cols4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+ 
+  /* BUTTONS */
+  .btn { border: none; border-radius: var(--radius); padding: 9px 18px; font-size: 13px; cursor: pointer; font-weight: 600; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #922b21; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+ 
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--surface2); color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(232,160,32,.04); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: rgba(41,128,185,.25); color: #5dade2; }
+  .badge-green { background: rgba(39,174,96,.25); color: #58d68d; }
+  .badge-orange { background: rgba(232,160,32,.25); color: var(--accent); }
+ 
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab { background: none; border: none; color: var(--text-muted); padding: 10px 18px; cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+ 
+  /* MONTH INPUTS */
+  .month-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+  .month-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+  .month-label { font-size: 11px; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+ 
+  /* STAT CARDS */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .stat-val { font-size: 26px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+ 
+  /* PROGRESS BAR */
+  .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 6px; width: 100%; }
+  .progress-bar { height: 6px; border-radius: 4px; background: var(--accent); }
+ 
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 999; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; padding: 24px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+  .modal-close:hover { color: var(--text); }
+ 
+  /* CHART */
+  .chart-wrap { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .chart-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+ 
+  /* MISC */
+  .empty { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  .text-muted { color: var(--text-muted); }
+  .text-accent { color: var(--accent); }
+  .inline-flex { display: flex; align-items: center; gap: 8px; }
+  .tooltip { position: relative; }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 7px; font-size: 11px; color: var(--text-muted); margin: 1px; }
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface2); border: 1px solid var(--accent); color: var(--text); padding: 10px 18px; border-radius: var(--radius); font-size: 13px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+ 
+  @media(max-width:700px) {
+    .grid2, .grid3, .form-row.cols2, .form-row.cols3, .form-row.cols4 { grid-template-columns: 1fr; }
+    main { padding: 16px; }
+
+  }
+  .duty-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:13px; }
+  .duty-item:hover { background:rgba(232,160,32,.08); }
+  .duty-item input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  .duty-tag { display:inline-flex; align-items:center; gap:5px; background:rgba(232,160,32,.15); border:1px solid rgba(232,160,32,.3); border-radius:20px; padding:3px 10px; font-size:12px; }
+  .duty-tag button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; padding:0; }
+  .duty-tag button:hover { color:var(--danger); }
+
+</style>
+</head>
+<body>
+ 
+<nav>
+  <div class="nav-logo">⚙ ENG MANHOURS</div>
+  <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+  <button class="nav-btn" onclick="showPage('staff')">Staff</button>
+  <button class="nav-btn" onclick="showPage('projects')">Projects</button>
+  <button class="nav-btn" onclick="showPage('manhours')">Manhours</button>
+  <button class="nav-btn" onclick="showPage('reports')">Reports</button>
+  <button class="nav-btn" onclick="showPage('chart')">Chart</button>
+  <button class="nav-btn" onclick="exportExcel()" style="margin-left:auto; color:var(--accent);">⬇ Export Excel</button>
+  <label class="btn btn-secondary btn-sm" style="margin-left:4px; cursor:pointer; white-space:nowrap;">
+    ⬆ Import Excel <input type="file" accept=".xlsx" style="display:none" onchange="importExcel(event)">
+  </label>
+</nav>
+ 
+<main>
+ 
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <h2>Dashboard</h2>
+  <div class="stat-row" id="dash-stats"></div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Projects Overview</h3>
+      <div id="dash-projects"></div>
+    </div>
+    <div class="card">
+      <h3>Staff Utilisation</h3>
+      <div id="dash-staff"></div>
+    </div>
+  </div>
+</div>
+ 
+<!-- STAFF -->
+<div class="page" id="page-staff">
+  <h2>Staff Management</h2>
+  <div class="card">
+    <div id="staff-form-area">
+      <h3 id="staff-form-title">Add Staff</h3>
+      <input type="hidden" id="staff-edit-id">
+      <div class="form-row cols3">
+        <div class="form-group"><label>Staff Name</label><input id="staff-name" placeholder="Full name"></div>
+       <div class="form-group"><label>Category</label>
+          <select id="staff-category" onchange="onStaffCategoryChange()">
+            <option value="">Select category</option>
+            <option value="engineer">Engineer</option>
+            <option value="designer_drafter">Designer & Drafter</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Section</label>
+          <select id="staff-section">
+            <option value="">Select section</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Level</label>
+          <select id="staff-role">
+            <option value="">Select level</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="staff-status">
+            <option value="">Select status</option>
+            <option>Permanent</option>
+            <option>Agency</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveStaff()">Save Staff</button>
+        <button class="btn btn-secondary" onclick="cancelStaffEdit()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Staff List</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>Projects</th><th>Total MH Given</th><th>Total MH Actual</th><th>Actions</th></tr></thead>        <tbody id="staff-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+ 
+<!-- PROJECTS -->
+<div class="page" id="page-projects">
+  <h2>Project Management</h2>
+  <div class="card">
+    <h3 id="proj-form-title">Add Project</h3>
+    <input type="hidden" id="proj-edit-id">
+    <div class="form-row cols3">
+      <div class="form-group"><label>Project ID</label><input id="proj-id-input" placeholder="e.g. 001"></div>
+      <div class="form-group"><label>Project Name</label><input id="proj-name" placeholder="Project name"></div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group"><label>Lead Staff</label>
+        <select id="proj-lead"><option value="">Select lead</option></select>
+      </div>
+      <div class="form-group"><label>MH Given (Project Total)</label><input id="proj-mh-given" type="number" placeholder="0"></div>
+    </div>
+    <div class="form-group">
+      <label>Staff on Duty</label>
+      <div style="position:relative">
+        <input id="staff-duty-search" placeholder="Search staff by name..." oninput="filterDutyStaff()" autocomplete="off"
+          style="margin-bottom:6px">
+        <div id="staff-duty-list" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px"></div>
+        <div id="staff-duty-selected" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group"><label>Start Date (MM/YYYY)</label><input id="proj-start" placeholder="MM/YYYY" maxlength="7" oninput="onProjDateChange()"></div>
+      <div class="form-group"><label>End Date (MM/YYYY)</label><input id="proj-end" placeholder="MM/YYYY" maxlength="7" oninput="onProjDateChange()"></div>
+    </div>
+    <div class="form-group"><label>Duration (auto)</label><input id="proj-duration" readonly placeholder="Will auto-calculate" style="color:var(--accent)"></div>
+    <div id="proj-month-section" style="display:none">
+      <hr class="section-divider">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+        <h3 style="margin:0">Monthly Progress (%)</h3>
+        <button class="btn btn-secondary btn-sm" onclick="addExtraMonth()">+ Add Month (Extension)</button>
+      </div>
+      <div class="month-grid" id="proj-months"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveProject()">Save Project</button>
+      <button class="btn btn-secondary" onclick="cancelProjEdit()">Cancel</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Project List</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Project ID</th><th>Name</th><th>Lead</th><th>Duration</th><th>Start</th><th>End</th><th>MH Given</th><th>MH Actual</th><th>Staff Count</th><th>Actions</th></tr></thead>
+        <tbody id="proj-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+ 
+<!-- MANHOURS -->
+<div class="page" id="page-manhours">
+  <h2>Manhours Input</h2>
+  <div class="tabs">
+    <button class="tab active" onclick="switchMhTab('staff')">By Staff</button>
+    <button class="tab" onclick="switchMhTab('project')">By Project</button>
+  </div>
+ 
+  <!-- MH BY STAFF -->
+  <div class="tab-content active" id="mh-tab-staff">
+    <div class="card">
+      <h3>Assign Staff Manhours to Project</h3>
+      <div class="form-row cols2">
+        <div class="form-group"><label>Select Staff</label>
+          <select id="mh-staff-select" onchange="onMhStaffChange()"><option value="">-- Select Staff --</option></select>
+        </div>
+        <div class="form-group"><label>Select Project</label>
+          <select id="mh-proj-select" onchange="onMhProjChange()"><option value="">-- Select Project --</option></select>
+        </div>
+      </div>
+      <div id="mh-staff-details" style="display:none">
+        <div class="form-row cols2">
+          <div class="form-group"><label>MH Given</label><input id="mh-staff-given" type="number" placeholder="0"></div>
+          <div class="form-group"><label>MH Actual</label><input id="mh-staff-actual" type="number" placeholder="0"></div>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="saveMhStaff()">Save Manhours</button></div>
+      </div>
+    </div>
+    <div class="card" id="mh-staff-summary-card" style="display:none">
+      <h3 id="mh-staff-summary-title">Staff Manhours Summary</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Project</th><th>Project ID</th><th>Section</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead>
+          <tbody id="mh-staff-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- MH BY PROJECT -->
+  <div class="tab-content" id="mh-tab-project">
+    <div class="card">
+      <h3>Project Monthly Progress & MH</h3>
+      <div class="form-group"><label>Select Project</label>
+        <select id="mh-proj-only-select" onchange="onMhProjOnlyChange()"><option value="">-- Select Project --</option></select>
+      </div>
+      <div id="mh-proj-details" style="display:none">
+        <div style="background:var(--surface2); border-radius:var(--radius); padding:12px; margin-bottom:14px;" id="mh-proj-info"></div>
+        <div class="form-row cols2">
+          <div class="form-group"><label>MH Given (Project Total)</label><input id="mh-proj-given" type="number"></div>
+          <div class="form-group"><label>MH Actual (Project Total)</label><input id="mh-proj-actual" type="number"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+          <h3 style="margin:0">Monthly Progress (%)</h3>
+          <button class="btn btn-secondary btn-sm" onclick="addProjExtraMonth()">+ Add Month (Extension)</button>
+        </div>
+        <div class="month-grid" id="mh-proj-months"></div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="saveMhProj()">Save Project MH & Progress</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<!-- REPORTS -->
+<div class="page" id="page-reports">
+  <h2>Reports</h2>
+  <div class="tabs">
+    <button class="tab active" onclick="switchRepTab('utilisation')">MH Utilisation</button>
+    <button class="tab" onclick="switchRepTab('staff-involvement')">Staff Involvement</button>
+    <button class="tab" onclick="switchRepTab('project-staff')">Project Staff</button>
+  </div>
+ 
+  <!-- UTILISATION -->
+  <div class="tab-content active" id="rep-tab-utilisation">
+    <div class="card">
+      <h3>Filter</h3>
+      <div class="form-row cols2">
+        <div class="form-group"><label>Filter by Section</label>
+          <select id="util-filter" onchange="renderUtilisation()">
+            <option value="all">All Sections</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="util-content"></div>
+  </div>
+ 
+  <!-- STAFF INVOLVEMENT -->
+    <div class="tab-content" id="rep-tab-staff-involvement">    <div class="card">
+      <div class="form-row cols3">
+        <div class="form-group"><label>View Mode</label>
+          <select id="rep-inv-mode" onchange="renderStaffInvolvement()">
+            <option value="matrix">Involvement Matrix</option>
+            <option value="by-staff">Filter by Staff</option>
+            <option value="by-project">Filter by Project</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Filter by Staff</label>
+          <select id="rep-staff-filter" onchange="renderStaffInvolvement()"><option value="all">All Staff</option></select>
+        </div>
+        <div class="form-group"><label>Filter by Project</label>
+          <select id="rep-proj-inv-filter" onchange="renderStaffInvolvement()"><option value="all">All Projects</option></select>
+        </div>
+      </div>
+    </div>
+    <div id="staff-inv-content"></div>
+  </div>
+ 
+  <!-- PROJECT STAFF -->
+  <div class="tab-content" id="rep-tab-project-staff">
+    <div class="card">
+      <div class="form-group"><label>Filter by Project</label>
+        <select id="rep-proj-filter" onchange="renderProjectStaff()"><option value="all">All Projects</option></select>
+      </div>
+    </div>
+    <div id="proj-staff-content"></div>
+  </div>
+</div>
+ 
+<!-- CHART PAGE -->
+<div class="page" id="page-chart">
+  <h2>Manhours Chart</h2>
+  <div class="chart-controls">
+    <div><label>Year</label>
+      <select id="chart-year" onchange="renderChart()" style="width:120px"></select>
+    </div>
+    <div><label>Section Filter</label>
+      <select id="chart-section" onchange="renderChart()" style="width:160px">
+        <option value="all">All Sections</option>
+      </select>
+    </div>
+  </div>
+ <div class="tabs" id="chart-subtabs" style="margin-bottom:0">
+    <button class="tab active" onclick="switchChartTab('mh')">Manhours Chart</button>
+    <button class="tab" onclick="switchChartTab('progress')">Project Progress Chart</button>
+  </div>
+
+  <div id="chart-tab-mh">
+    <div class="chart-wrap" style="margin-top:16px">
+      <canvas id="mh-chart" height="100"></canvas>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>Legend</h3>
+      <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:13px;">
+        <span><span style="display:inline-block;width:12px;height:12px;background:#e8a020;border-radius:2px;margin-right:6px;"></span>MH Given</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#5dade2;border-radius:2px;margin-right:6px;"></span>MH Actual</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,.5);border-radius:2px;margin-right:6px;"></span>Max MH</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="chart-tab-progress" style="display:none; margin-top:16px">
+    <div class="card">
+      <div class="form-group" style="margin-bottom:0">
+        <label>Search Project</label>
+        <input id="progress-search" placeholder="Type project name or ID..." oninput="renderProgressChart()" style="max-width:360px">
+      </div>
+    </div>
+    <div id="progress-chart-list"></div>
+  </div>
+</div>
+ 
+</main>
+ 
+<!-- TOAST -->
+<div id="toast"></div>
+ 
+<script>
+// ===================== DATA STORE =====================
+let data = {
+  staff: [],
+  projects: [],
+  staffMH: [],    // {staffId, projectId, mhGiven, mhActual}
+  _nextStaffId: 1,
+  _nextProjId: 1,
+  _nextMhId: 1
+};
+ 
+const MAX_MH_PER_STAFF = 160;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];function uid(prefix){ return prefix + (Date.now() % 1e9) + Math.floor(Math.random()*1000); }
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2500); }
+function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+ 
+// ===================== NAV =====================
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>{ if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active'); });
+  if(id==='dashboard') renderDashboard();
+  if(id==='staff') renderStaffTable();
+  if(id==='projects') renderProjTable();
+  if(id==='manhours') { refreshMhDropdowns(); }
+  if(id==='reports') { refreshReportDropdowns(); renderUtilisation(); }
+  if(id==='chart') renderChart();
+}
+ 
+// ===================== STAFF =====================
+const ENGINEER_SECTIONS = ['Piping','Rotating','Stress','HVAC','PDMS','Static & Package'];
+const ENGINEER_LEVELS = ['Engineer','Senior Engineer','Lead Engineer'];
+const DD_LEVELS = ['Drafter','Designer','Senior Designer','Senior Drafter','Lead Designer'];
+
+function onStaffCategoryChange(){
+  const cat=document.getElementById('staff-category').value;
+  const secSel=document.getElementById('staff-section');
+  const roleSel=document.getElementById('staff-role');
+  secSel.innerHTML='<option value="">Select section</option>';
+  roleSel.innerHTML='<option value="">Select level</option>';
+  if(cat==='engineer'){
+    ENGINEER_SECTIONS.forEach(s=>{ const o=document.createElement('option'); o.textContent=s; secSel.appendChild(o); });
+    ENGINEER_LEVELS.forEach(l=>{ const o=document.createElement('option'); o.textContent=l; roleSel.appendChild(o); });
+  } else if(cat==='designer_drafter'){
+    ['Designer & Drafter'].forEach(s=>{ const o=document.createElement('option'); o.textContent=s; secSel.appendChild(o); });
+    DD_LEVELS.forEach(l=>{ const o=document.createElement('option'); o.textContent=l; roleSel.appendChild(o); });
+  }
+}
+
+function saveStaff(){
+  const name=document.getElementById('staff-name').value.trim();
+  const category=document.getElementById('staff-category').value;
+  const section=document.getElementById('staff-section').value;
+  const role=document.getElementById('staff-role').value;
+  const status=document.getElementById('staff-status').value;
+  if(!name||!category||!section||!role||!status){ toast('Please fill all staff fields'); return; }
+  const editId=document.getElementById('staff-edit-id').value;
+  if(editId){
+    const s=data.staff.find(x=>x.id===editId);
+    if(s){ s.name=name; s.category=category; s.section=section; s.role=role; s.status=status; }
+  } else {
+    data.staff.push({id:uid('S'),name,category,section,role,status});
+  }
+  cancelStaffEdit(); renderStaffTable(); toast('Staff saved');
+}
+function editStaff(id){
+  const s=data.staff.find(x=>x.id===id); if(!s) return;
+  document.getElementById('staff-edit-id').value=id;
+  document.getElementById('staff-name').value=s.name;
+  document.getElementById('staff-category').value=s.category||'';
+  onStaffCategoryChange();
+  document.getElementById('staff-section').value=s.section;
+  document.getElementById('staff-role').value=s.role;
+  document.getElementById('staff-status').value=s.status||'';
+  document.getElementById('staff-form-title').textContent='Edit Staff';
+}
+function deleteStaff(id){
+  if(!confirm('Delete this staff? Their manhour records will also be removed.')) return;
+  data.staff=data.staff.filter(x=>x.id!==id);
+  data.staffMH=data.staffMH.filter(x=>x.staffId!==id);
+  renderStaffTable(); toast('Staff deleted');
+}
+function cancelStaffEdit(){
+  document.getElementById('staff-edit-id').value='';
+  document.getElementById('staff-name').value='';
+  document.getElementById('staff-category').value='';
+  document.getElementById('staff-section').innerHTML='<option value="">Select section</option>';
+  document.getElementById('staff-role').innerHTML='<option value="">Select level</option>';
+  document.getElementById('staff-status').value='';
+  document.getElementById('staff-form-title').textContent='Add Staff';
+}
+function staffTotalMH(staffId, field){
+  return data.staffMH.filter(m=>m.staffId===staffId).reduce((a,m)=>a+(+m[field]||0),0);
+}
+function staffProjectCount(staffId){
+  return [...new Set(data.staffMH.filter(m=>m.staffId===staffId).map(m=>m.projectId))].length;
+}
+function renderStaffTable(){
+  const tbody=document.getElementById('staff-table');
+  if(!data.staff.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">No staff yet. Add staff above.</td></tr>'; return; }
+tbody.innerHTML=data.staff.map((s,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td><span class="badge badge-orange">${s.category==='engineer'?'Engineer':'Designer & Drafter'}</span></td>
+      <td><span class="badge badge-blue">${esc(s.section)}</span></td>
+      <td><span class="badge badge-green">${esc(s.role)}</span></td>
+      <td><span class="badge ${s.status==='Permanent'?'badge-green':'badge-blue'}">${esc(s.status||'-')}</span></td>
+      <td>${staffProjectCount(s.id)}</td>
+      <td>${staffTotalMH(s.id,'mhGiven').toLocaleString()}</td>
+      <td>${staffTotalMH(s.id,'mhActual').toLocaleString()}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editStaff('${s.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStaff('${s.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+ 
+// ===================== PROJECTS =====================
+let projMonths = []; // {label, progress} for add/edit form
+ 
+function parseMMYYYY(val){
+  if(!val) return null;
+  const m=val.match(/^(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  return {month:parseInt(m[1]),year:parseInt(m[2])};
+}
+function diffMonths(start, end){
+  return (end.year-start.year)*12+(end.month-start.month)+1;
+}
+function monthLabelFromOffset(start, offset){
+  let m=start.month-1+offset;
+  let y=start.year+Math.floor(m/12);
+  m=m%12;
+  return MONTHS[m]+' '+y;
+}
+ 
+function onProjDateChange(){
+  const s=parseMMYYYY(document.getElementById('proj-start').value);
+  const e=parseMMYYYY(document.getElementById('proj-end').value);
+  const dur=document.getElementById('proj-duration');
+  const ms=document.getElementById('proj-month-section');
+  if(s&&e&&diffMonths(s,e)>0){
+    const d=diffMonths(s,e);
+    dur.value=d+' month'+(d>1?'s':'');
+    buildMonthInputs(s,d);
+    ms.style.display='block';
+  } else {
+    dur.value='';
+    ms.style.display='none';
+    projMonths=[];
+  }
+}
+function buildMonthInputs(start, count){
+  projMonths=[];
+  for(let i=0;i<count;i++) projMonths.push({label:monthLabelFromOffset(start,i),progress:0});
+  renderMonthInputs();
+}
+function renderMonthInputs(){
+  const c=document.getElementById('proj-months');
+  c.innerHTML=projMonths.map((m,i)=>`
+    <div class="month-item">
+      <div class="month-label">${esc(m.label)}</div>
+      <label style="font-size:11px;color:var(--text-muted)">Progress %</label>
+      <input type="number" min="0" max="100" value="${m.progress}" oninput="projMonths[${i}].progress=+this.value">
+    </div>`).join('');
+}
+function addExtraMonth(){
+  if(!projMonths.length){ toast('Set start date first'); return; }
+  const last=projMonths[projMonths.length-1].label;
+  const parts=last.split(' ');
+  const mo=MONTHS.indexOf(parts[0]);
+  const yr=parseInt(parts[1]);
+  const nm=(mo+1)%12; const ny=yr+(mo===11?1:0);
+  projMonths.push({label:MONTHS[nm]+' '+ny,progress:0});
+  renderMonthInputs();
+}
+
+let dutyStaffIds=[];
+
+ 
+function saveProject(){
+  const pid=document.getElementById('proj-id-input').value.trim();
+  const name=document.getElementById('proj-name').value.trim();
+  const section='';  const lead=document.getElementById('proj-lead').value;
+  const mhGiven=+document.getElementById('proj-mh-given').value||0;
+  const startVal=document.getElementById('proj-start').value.trim();
+  const endVal=document.getElementById('proj-end').value.trim();
+  if(!pid||!name){ toast('Fill Project ID and Name'); return; }  const editId=document.getElementById('proj-edit-id').value;
+  const s=parseMMYYYY(startVal);
+  const e=parseMMYYYY(endVal);
+  const duration=s&&e&&diffMonths(s,e)>0?diffMonths(s,e):0;
+  const obj={
+    id:editId||uid('P'),
+    projectId:pid,
+    name,
+    section,
+    lead,
+    dutyStaff:[...dutyStaffIds],
+    mhGiven,
+    mhActual:0,
+    startDate:startVal,
+    endDate:endVal,
+    duration,
+    months:[...projMonths]
+  };
+  if(editId){
+    const idx=data.projects.findIndex(x=>x.id===editId);
+    if(idx>=0){
+      obj.mhActual=data.projects[idx].mhActual;
+      data.projects[idx]=obj;
+    }
+  } else {
+    data.projects.push(obj);
+  }
+  cancelProjEdit();
+  renderProjTable();
+  refreshLeadDropdown();
+  toast('Project saved');
+}
+function editProject(id){
+  const p=data.projects.find(x=>x.id===id); if(!p) return;
+  document.getElementById('proj-edit-id').value=id;
+  document.getElementById('proj-id-input').value=p.projectId;
+  document.getElementById('proj-name').value=p.name;
+  dutyStaffIds=p.dutyStaff?[...p.dutyStaff]:[];
+  refreshLeadDropdown();
+  document.getElementById('proj-lead').value=p.lead;
+  document.getElementById('proj-mh-given').value=p.mhGiven;  document.getElementById('proj-start').value=p.startDate;
+  document.getElementById('proj-end').value=p.endDate;
+  document.getElementById('proj-duration').value=p.duration+(p.duration===1?' month':' months');
+  projMonths=p.months?[...p.months]:[];
+  if(projMonths.length){ document.getElementById('proj-month-section').style.display='block'; renderMonthInputs(); }
+  document.getElementById('proj-form-title').textContent='Edit Project';
+  document.getElementById('page-projects').scrollTop=0;
+}
+function deleteProject(id){
+  if(!confirm('Delete this project? Related manhour records will also be removed.')) return;
+  data.projects=data.projects.filter(x=>x.id!==id);
+  data.staffMH=data.staffMH.filter(x=>x.projectId!==id);
+  renderProjTable(); toast('Project deleted');
+}
+function cancelProjEdit(){
+  ['proj-edit-id','proj-id-input','proj-name','proj-mh-given','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('proj-lead').value='';
+  document.getElementById('proj-month-section').style.display='none';
+  document.getElementById('staff-duty-search').value='';
+  projMonths=[];
+  dutyStaffIds=[];
+  renderDutyStaffList();
+  document.getElementById('proj-form-title').textContent='Add Project';
+}
+function refreshLeadDropdown(){
+  const sel=document.getElementById('proj-lead');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Select lead</option>'+data.staff.map(s=>`<option value="${s.id}">${esc(s.name)} (${esc(s.section)})</option>`).join('');
+  sel.value=cur;
+  renderDutyStaffList();
+}
+
+function renderDutyStaffList(){
+  const search=(document.getElementById('staff-duty-search')?.value||'').toLowerCase();
+  const list=document.getElementById('staff-duty-list');
+  if(!list) return;
+  const filtered=data.staff.filter(s=>!search||s.name.toLowerCase().includes(search));
+  list.innerHTML=filtered.length
+    ? filtered.map(s=>`
+        <label class="duty-item">
+          <input type="checkbox" value="${s.id}" ${dutyStaffIds.includes(s.id)?'checked':''}
+            onchange="toggleDutyStaff('${s.id}')">
+          <span>${esc(s.name)}</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:auto">${esc(s.section)} · ${esc(s.role)}</span>
+        </label>`).join('')
+    : '<div style="padding:8px;color:var(--text-muted);font-size:13px">No staff found</div>';
+  renderDutyTags();
+}
+
+function filterDutyStaff(){
+  renderDutyStaffList();
+}
+
+function toggleDutyStaff(id){
+  if(dutyStaffIds.includes(id)) dutyStaffIds=dutyStaffIds.filter(x=>x!==id);
+  else dutyStaffIds.push(id);
+  renderDutyTags();
+}
+
+function renderDutyTags(){
+  const wrap=document.getElementById('staff-duty-selected');
+  if(!wrap) return;
+  wrap.innerHTML=dutyStaffIds.map(id=>{
+    const s=data.staff.find(x=>x.id===id);
+    return s?`<span class="duty-tag">${esc(s.name)}<button onclick="removeDutyStaff('${id}')" title="Remove">×</button></span>`:'' ;
+  }).join('');
+}
+
+function removeDutyStaff(id){
+  dutyStaffIds=dutyStaffIds.filter(x=>x!==id);
+  renderDutyStaffList();
+}
+function projectStaffCount(projId){
+  return [...new Set(data.staffMH.filter(m=>m.projectId===projId).map(m=>m.staffId))].length;
+}
+function projTotalMHActual(proj){
+  return data.staffMH.filter(m=>m.projectId===proj.id).reduce((a,m)=>a+(+m.mhActual||0),0);
+}
+function renderProjTable(){
+  refreshLeadDropdown();
+  const tbody=document.getElementById('proj-table');
+  if(!data.projects.length){ tbody.innerHTML='<tr><td colspan="11" class="empty">No projects yet.</td></tr>'; return; }
+  tbody.innerHTML=data.projects.map(p=>{
+    const leadName=data.staff.find(s=>s.id===p.lead)?.name||'-';
+    const actual=projTotalMHActual(p);
+    return `<tr>
+      <td><strong>${esc(p.projectId)}</strong></td>
+      <td>${esc(p.name)}</td>
+      <td><span class="badge badge-blue">${esc(p.section)}</span></td>
+      <td>${esc(leadName)}</td>
+      <td>${p.duration||'-'} mo</td>
+      <td>${esc(p.startDate)||'-'}</td>
+      <td>${esc(p.endDate)||'-'}</td>
+      <td>${(p.mhGiven||0).toLocaleString()}</td>
+      <td>${actual.toLocaleString()}</td>
+      <td>${projectStaffCount(p.id)}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editProject('${p.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+ 
+// ===================== MANHOURS =====================
+function switchMhTab(tab){
+  document.querySelectorAll('#page-manhours .tab').forEach((t,i)=>{ t.classList.toggle('active',i===(tab==='staff'?0:1)); });
+  document.getElementById('mh-tab-staff').classList.toggle('active',tab==='staff');
+  document.getElementById('mh-tab-project').classList.toggle('active',tab==='project');
+}
+function refreshMhDropdowns(){
+  // staff
+  const ss=document.getElementById('mh-staff-select');
+  const cv=ss.value;
+  ss.innerHTML='<option value="">-- Select Staff --</option>'+data.staff.map(s=>`<option value="${s.id}">${esc(s.name)} (${esc(s.role)} / ${esc(s.section)})</option>`).join('');
+  ss.value=cv;
+  // proj by-staff
+  onMhStaffChange();
+  // proj only
+  const po=document.getElementById('mh-proj-only-select');
+  const pv=po.value;
+  po.innerHTML='<option value="">-- Select Project --</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
+  po.value=pv;
+  onMhProjOnlyChange();
+}
+function onMhStaffChange(){
+  const staffId=document.getElementById('mh-staff-select').value;
+  const ps=document.getElementById('mh-proj-select');
+  // Only show projects where this staff is on duty
+  const assignedProjs=staffId
+    ? data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.includes(staffId))
+    : [];
+  ps.innerHTML='<option value="">-- Select Project --</option>'+assignedProjs.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
+  if(staffId&&assignedProjs.length===0){
+    ps.innerHTML='<option value="">No projects assigned to this staff</option>';
+  }
+  document.getElementById('mh-staff-details').style.display='none';
+  if(staffId){ showStaffMhSummary(staffId); } else { document.getElementById('mh-staff-summary-card').style.display='none'; }
+}
+function onMhProjChange(){
+  const staffId=document.getElementById('mh-staff-select').value;
+  const projId=document.getElementById('mh-proj-select').value;
+  const det=document.getElementById('mh-staff-details');
+  if(!staffId||!projId){ det.style.display='none'; return; }
+  det.style.display='block';
+  const existing=data.staffMH.find(m=>m.staffId===staffId&&m.projectId===projId);
+  document.getElementById('mh-staff-given').value=existing?existing.mhGiven:'';
+  document.getElementById('mh-staff-actual').value=existing?existing.mhActual:'';
+}
+function saveMhStaff(){
+  const staffId=document.getElementById('mh-staff-select').value;
+  const projId=document.getElementById('mh-proj-select').value;
+  const mhGiven=+document.getElementById('mh-staff-given').value||0;
+  const mhActual=+document.getElementById('mh-staff-actual').value||0;
+  if(!staffId||!projId){ toast('Select staff and project'); return; }
+  const existing=data.staffMH.find(m=>m.staffId===staffId&&m.projectId===projId);
+  if(existing){ existing.mhGiven=mhGiven; existing.mhActual=mhActual; }
+  else { data.staffMH.push({id:uid('M'),staffId,projectId:projId,mhGiven,mhActual}); }
+  showStaffMhSummary(staffId); toast('Manhours saved');
+}
+function showStaffMhSummary(staffId){
+  const sc=document.getElementById('mh-staff-summary-card');
+  const st=data.staff.find(s=>s.id===staffId);
+  if(!st){ sc.style.display='none'; return; }
+  sc.style.display='block';
+  document.getElementById('mh-staff-summary-title').textContent=st.name+' – Project Manhours';
+  const records=data.staffMH.filter(m=>m.staffId===staffId);
+  const tbody=document.getElementById('mh-staff-table');
+  if(!records.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No manhour records.</td></tr>'; return; }
+  tbody.innerHTML=records.map(m=>{
+    const p=data.projects.find(x=>x.id===m.projectId);
+    const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100)+'%':'-';
+    return `<tr>
+      <td>${p?esc(p.name):'-'}</td>
+      <td>${p?esc(p.projectId):'-'}</td>
+      <td>${p?esc(p.section):'-'}</td>
+      <td>${m.mhGiven.toLocaleString()}</td>
+      <td>${m.mhActual.toLocaleString()}</td>
+      <td>${util}</td>
+    </tr>`;
+  }).join('');
+}
+ 
+// MH BY PROJECT
+function onMhProjOnlyChange(){
+  const projId=document.getElementById('mh-proj-only-select').value;
+  const det=document.getElementById('mh-proj-details');
+  if(!projId){ det.style.display='none'; return; }
+  const p=data.projects.find(x=>x.id===projId); if(!p){ det.style.display='none'; return; }
+  det.style.display='block';
+  const leadName=data.staff.find(s=>s.id===p.lead)?.name||'-';
+  document.getElementById('mh-proj-info').innerHTML=`
+    <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
+      <span><span class="text-muted">ID:</span> <strong>${esc(p.projectId)}</strong></span>
+      <span><span class="text-muted">Section:</span> <strong>${esc(p.section)}</strong></span>
+      <span><span class="text-muted">Lead:</span> <strong>${esc(leadName)}</strong></span>
+      <span><span class="text-muted">Duration:</span> <strong>${p.duration} months</strong></span>
+      <span><span class="text-muted">Period:</span> <strong>${esc(p.startDate)} – ${esc(p.endDate)}</strong></span>
+    </div>`;
+  document.getElementById('mh-proj-given').value=p.mhGiven||0;
+  document.getElementById('mh-proj-actual').value=p.mhActual||0;
+  // Build month inputs from project
+  renderMhProjMonths(p);
+}
+let mhProjMonths=[];
+function renderMhProjMonths(p){
+  mhProjMonths=p.months?[...p.months]:[];
+  const c=document.getElementById('mh-proj-months');
+  c.innerHTML=mhProjMonths.map((m,i)=>`
+    <div class="month-item">
+      <div class="month-label">${esc(m.label)}</div>
+      <label style="font-size:11px;color:var(--text-muted)">Progress %</label>
+      <input type="number" min="0" max="100" value="${m.progress||0}" oninput="mhProjMonths[${i}].progress=+this.value">
+    </div>`).join('');
+}
+function addProjExtraMonth(){
+  if(!mhProjMonths.length){ toast('No months defined for this project'); return; }
+  const last=mhProjMonths[mhProjMonths.length-1].label;
+  const parts=last.split(' ');
+  const mo=MONTHS.indexOf(parts[0]); const yr=parseInt(parts[1]);
+  const nm=(mo+1)%12; const ny=yr+(mo===11?1:0);
+  mhProjMonths.push({label:MONTHS[nm]+' '+ny,progress:0});
+  const projId=document.getElementById('mh-proj-only-select').value;
+  const p=data.projects.find(x=>x.id===projId);
+  renderMhProjMonths({months:mhProjMonths});
+}
+function saveMhProj(){
+  const projId=document.getElementById('mh-proj-only-select').value;
+  if(!projId){ toast('Select a project'); return; }
+  const p=data.projects.find(x=>x.id===projId); if(!p) return;
+  p.mhGiven=+document.getElementById('mh-proj-given').value||0;
+  p.mhActual=+document.getElementById('mh-proj-actual').value||0;
+  p.months=[...mhProjMonths];
+  toast('Project MH & progress saved');
+}
+ 
+// ===================== REPORTS =====================
+function switchRepTab(tab){
+  const tabs=['utilisation','staff-involvement','project-staff'];
+  document.querySelectorAll('#page-reports .tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===tab));
+  document.querySelectorAll('#page-reports .tab-content').forEach((c,i)=>c.classList.toggle('active',tabs[i]===tab));
+  if(tab==='utilisation') renderUtilisation();
+  if(tab==='staff-involvement') renderStaffInvolvement();
+  if(tab==='project-staff') renderProjectStaff();
+}
+function refreshReportDropdowns(){
+  // util filter rebuilt inside renderUtilisation()
+
+  const sf=document.getElementById('rep-staff-filter');
+  sf.innerHTML='<option value="all">All Staff</option>'+data.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+
+  const pf=document.getElementById('rep-proj-filter');
+  pf.innerHTML='<option value="all">All Projects</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
+
+  const pif=document.getElementById('rep-proj-inv-filter');
+  if(pif) pif.innerHTML='<option value="all">All Projects</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
+}
+function renderUtilisation(){
+  const uf=document.getElementById('util-filter');
+  const cur=uf.value;
+  const sections=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
+  uf.innerHTML='<option value="all">All Sections</option>'+sections.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
+  uf.value=cur;
+
+  const sectionFilter=uf.value;
+  const container=document.getElementById('util-content');
+  if(!data.projects.length){ container.innerHTML='<div class="empty">No projects.</div>'; return; }
+
+  let sectionsToShow=sections;
+  if(sectionFilter!=='all') sectionsToShow=[sectionFilter];
+
+  let html='';
+  sectionsToShow.forEach(section=>{
+    const sectionStaffIds=data.staff.filter(s=>s.section===section).map(s=>s.id);
+    const projs=data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.some(id=>sectionStaffIds.includes(id)));
+    if(!projs.length) return;
+    html+=`<div class="card"><h3>${esc(section)}</h3><div class="table-wrap"><table>
+      <thead><tr><th>Project</th><th>Lead Staff</th><th>Duration</th><th>Start</th><th>End</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th><th>Progress by Month</th></tr></thead>
+      <tbody>`;
+    projs.forEach(p=>{
+      const lead=data.staff.find(s=>s.id===p.lead);
+      const actual=projTotalMHActual(p)||p.mhActual||0;
+      const util=p.mhGiven>0?Math.round(actual/p.mhGiven*100):0;
+      const monthBadges=(p.months||[]).map(m=>`<span class="tag">${esc(m.label)}: ${m.progress}%</span>`).join('');
+      html+=`<tr>
+        <td><strong>${esc(p.name)}</strong><br><span class="text-muted" style="font-size:11px">${esc(p.projectId)}</span></td>
+        <td>${lead?esc(lead.name):'-'}</td>
+        <td>${p.duration||'-'} mo</td>
+        <td>${esc(p.startDate)||'-'}</td>
+        <td>${esc(p.endDate)||'-'}</td>
+        <td>${(p.mhGiven||0).toLocaleString()}</td>
+        <td>${actual.toLocaleString()}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="progress-bar-wrap" style="flex:1"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div>
+            <span style="font-size:12px;color:var(--accent)">${util}%</span>
+          </div>
+        </td>
+        <td><div style="max-width:280px">${monthBadges||'-'}</div></td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div></div>`;
+  });
+  container.innerHTML=html||'<div class="empty">No data to display.</div>';
+}
+ 
+function renderStaffInvolvement(){
+  const mode=document.getElementById('rep-inv-mode').value;
+  const staffFilter=document.getElementById('rep-staff-filter').value;
+  const projFilter=document.getElementById('rep-proj-inv-filter')?document.getElementById('rep-proj-inv-filter').value:'all';
+  const container=document.getElementById('staff-inv-content');
+
+  if(mode==='matrix'){
+    // Show full matrix: rows=staff, cols=projects, dot if involved
+    let staffList=data.staff;
+    let projList=data.projects;
+    if(!staffList.length||!projList.length){ container.innerHTML='<div class="empty">Add staff and projects first.</div>'; return; }
+    const DOT_COLORS={engineer:'#e8a020','designer_drafter':'#5dade2'};
+    let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr>
+        <th style="background:var(--surface2);padding:8px 12px;text-align:left;border:1px solid var(--border);min-width:140px;position:sticky;left:0;z-index:2">Staff</th>
+        <th style="background:var(--surface2);padding:8px 12px;text-align:left;border:1px solid var(--border);min-width:80px;position:sticky;left:140px;z-index:2">Section</th>`;
+    projList.forEach(p=>{ html+=`<th style="background:var(--surface2);padding:6px 8px;text-align:center;border:1px solid var(--border);min-width:80px;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.name)}">${esc(p.projectId)}</th>`; });
+    html+=`<th style="background:var(--surface2);padding:8px;text-align:center;border:1px solid var(--border)">Total</th></tr>
+      <tr>
+        <td style="background:var(--surface);padding:4px 12px;border:1px solid var(--border);font-size:10px;color:var(--text-muted);position:sticky;left:0" colspan="2"></td>`;
+    projList.forEach(p=>{ html+=`<td style="background:var(--surface);padding:4px 6px;text-align:center;border:1px solid var(--border);font-size:10px;color:var(--text-muted)">${esc(p.name).substring(0,12)+(p.name.length>12?'…':'')}</td>`; });
+    html+=`<td style="background:var(--surface);border:1px solid var(--border)"></td></tr></thead><tbody>`;
+    staffList.forEach(s=>{
+      const involvement=projList.map(p=>data.staffMH.find(m=>m.staffId===s.id&&m.projectId===p.id));
+      const count=involvement.filter(Boolean).length;
+      const dotColor=s.category==='engineer'?'#e8a020':'#5dade2';
+      html+=`<tr>
+        <td style="padding:8px 12px;border:1px solid var(--border);background:var(--surface);position:sticky;left:0;z-index:1"><strong>${esc(s.name)}</strong><br><span style="font-size:10px;color:var(--text-muted)">${esc(s.role)}</span></td>
+        <td style="padding:8px 12px;border:1px solid var(--border);background:var(--surface);position:sticky;left:140px;z-index:1;font-size:11px">${esc(s.section)}</td>`;
+      involvement.forEach((m,i)=>{
+        if(m){
+          const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+          html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border)" title="MH Given:${m.mhGiven} | Actual:${m.mhActual} | Util:${util}%">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${dotColor};color:#000;font-size:10px;font-weight:700;cursor:default">${util}%</span>
+          </td>`;
+        } else {
+          html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border)"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--border)"></span></td>`;
+        }
+      });
+      html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border);font-weight:700;color:var(--accent)">${count}</td></tr>`;
+    });
+    // project totals row
+    html+=`<tr><td colspan="2" style="padding:8px 12px;border:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--text-muted);font-weight:600;position:sticky;left:0">Staff Count per Project</td>`;
+    projList.forEach(p=>{
+      const cnt=[...new Set(data.staffMH.filter(m=>m.projectId===p.id).map(m=>m.staffId))].length;
+      html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border);background:var(--surface2);font-weight:700;color:var(--accent)">${cnt}</td>`;
+    });
+    html+=`<td style="border:1px solid var(--border);background:var(--surface2)"></td></tr>`;
+    html+=`</tbody></table></div>`;
+    html+=`<div style="margin-top:10px;display:flex;gap:16px;font-size:12px">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#e8a020;margin-right:4px"></span>Engineer (shows utilisation %)</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#5dade2;margin-right:4px"></span>Designer & Drafter</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--border);margin-right:4px"></span>Not involved</span>
+    </div>`;
+    container.innerHTML=html;
+    return;
+  }
+
+  if(mode==='by-staff'){
+    const staffList=staffFilter==='all'?data.staff:data.staff.filter(s=>s.id===staffFilter);
+    if(!staffList.length){ container.innerHTML='<div class="empty">No staff.</div>'; return; }
+    let html='';
+    staffList.forEach(s=>{
+      const records=data.staffMH.filter(m=>m.staffId===s.id);
+      const totalGiven=records.reduce((a,m)=>a+(+m.mhGiven||0),0);
+      const totalActual=records.reduce((a,m)=>a+(+m.mhActual||0),0);
+      html+=`<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <strong style="font-size:15px">${esc(s.name)}</strong>
+            <span class="badge badge-blue" style="margin-left:8px">${esc(s.section)}</span>
+            <span class="badge badge-green" style="margin-left:4px">${esc(s.role)}</span>
+            <span class="badge badge-orange" style="margin-left:4px">${esc(s.status||'')}</span>
+          </div>
+          <div style="display:flex;gap:16px;font-size:13px">
+            <span class="text-muted">Projects: <strong class="text-accent">${records.length}</strong></span>
+            <span class="text-muted">MH Given: <strong>${totalGiven.toLocaleString()}</strong></span>
+            <span class="text-muted">MH Actual: <strong>${totalActual.toLocaleString()}</strong></span>
+          </div>
+        </div>`;
+      if(records.length){
+        html+=`<div class="table-wrap"><table>
+          <thead><tr><th>Project</th><th>Project ID</th><th>Section</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+        records.forEach(m=>{
+          const p=data.projects.find(x=>x.id===m.projectId);
+          const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+          html+=`<tr>
+            <td>${p?esc(p.name):'-'}</td><td>${p?esc(p.projectId):'-'}</td><td>${p?esc(p.section):'-'}</td>
+            <td>${(+m.mhGiven||0).toLocaleString()}</td><td>${(+m.mhActual||0).toLocaleString()}</td>
+            <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
+          </tr>`;
+        });
+        html+=`</tbody></table></div>`;
+      } else { html+=`<div class="empty" style="padding:16px">No projects assigned.</div>`; }
+      html+=`</div>`;
+    });
+    container.innerHTML=html;
+    return;
+  }
+
+  if(mode==='by-project'){
+    const projList=projFilter==='all'?data.projects:data.projects.filter(p=>p.id===projFilter);
+    if(!projList.length){ container.innerHTML='<div class="empty">No projects.</div>'; return; }
+    let html='';
+    projList.forEach(p=>{
+      const records=data.staffMH.filter(m=>m.projectId===p.id);
+      const lead=data.staff.find(s=>s.id===p.lead);
+      html+=`<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div>
+            <strong style="font-size:15px">${esc(p.name)}</strong>
+            <span class="text-muted" style="font-size:12px;margin-left:8px">${esc(p.projectId)}</span>
+            <span class="badge badge-blue" style="margin-left:8px">${esc(p.section)}</span>
+          </div>
+          <div style="font-size:13px">Lead: <strong>${lead?esc(lead.name):'-'}</strong> &nbsp;|&nbsp; Staff: <strong class="text-accent">${records.length}</strong></div>
+        </div>`;
+      if(records.length){
+        html+=`<div class="table-wrap"><table>
+          <thead><tr><th>Staff</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+        records.forEach(m=>{
+          const s=data.staff.find(x=>x.id===m.staffId);
+          const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+          html+=`<tr>
+            <td>${s?esc(s.name):'-'}</td>
+            <td>${s?(s.category==='engineer'?'Engineer':'Designer & Drafter'):'-'}</td>
+            <td>${s?esc(s.section):'-'}</td>
+            <td>${s?esc(s.role):'-'}</td>
+            <td>${s?esc(s.status||'-'):'-'}</td>
+            <td>${(+m.mhGiven||0).toLocaleString()}</td>
+            <td>${(+m.mhActual||0).toLocaleString()}</td>
+            <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
+          </tr>`;
+        });
+        html+=`</tbody></table></div>`;
+      } else { html+=`<div class="empty" style="padding:16px">No staff assigned.</div>`; }
+      html+=`</div>`;
+    });
+    container.innerHTML=html;
+  }
+}
+ 
+function renderProjectStaff(){
+  const filter=document.getElementById('rep-proj-filter').value;
+  const projList=filter==='all'?data.projects:data.projects.filter(p=>p.id===filter);
+  const container=document.getElementById('proj-staff-content');
+  if(!projList.length){ container.innerHTML='<div class="empty">No projects.</div>'; return; }
+  let html='';
+  projList.forEach(p=>{
+    const records=data.staffMH.filter(m=>m.projectId===p.id);
+    const lead=data.staff.find(s=>s.id===p.lead);
+    const totalGiven=records.reduce((a,m)=>a+(+m.mhGiven||0),0);
+    const totalActual=records.reduce((a,m)=>a+(+m.mhActual||0),0);
+    html+=`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong style="font-size:15px">${esc(p.name)}</strong>
+          <span class="text-muted" style="font-size:12px;margin-left:8px">${esc(p.projectId)}</span>
+          <span class="badge badge-blue" style="margin-left:8px">${esc(p.section)}</span>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+          <span class="text-muted">Lead: <strong>${lead?esc(lead.name):'-'}</strong></span>
+          <span class="text-muted">Staff: <strong class="text-accent">${records.length}</strong></span>
+          <span class="text-muted">${esc(p.startDate)} – ${esc(p.endDate)}</span>
+          <span class="text-muted">MH Given: <strong>${(p.mhGiven||totalGiven).toLocaleString()}</strong></span>
+          <span class="text-muted">MH Actual: <strong>${(p.mhActual||totalActual).toLocaleString()}</strong></span>
+        </div>
+      </div>`;
+    if(p.months&&p.months.length){
+      html+=`<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px">`;
+      p.months.forEach(m=>{ html+=`<span class="tag">${esc(m.label)}: ${m.progress}%</span>`; });
+      html+=`</div>`;
+    }
+    if(records.length){
+      html+=`<div class="table-wrap"><table>
+        <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+      records.forEach(m=>{
+        const s=data.staff.find(x=>x.id===m.staffId);
+        const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+        html+=`<tr>
+          <td>${s?esc(s.name):'-'}</td>
+          <td>${s?esc(s.section):'-'}</td>
+          <td>${s?esc(s.role):'-'}</td>
+          <td>${(+m.mhGiven||0).toLocaleString()}</td>
+          <td>${(+m.mhActual||0).toLocaleString()}</td>
+          <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
+    } else {
+      html+=`<div class="empty" style="padding:16px">No staff assigned.</div>`;
+    }
+    html+=`</div>`;
+  });
+  container.innerHTML=html;
+}
+ 
+// ===================== DASHBOARD =====================
+function renderDashboard(){
+  const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0)+data.projects.reduce((a,p)=>a+(+p.mhGiven||0),0);
+  const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
+  const util=totalMHGiven>0?Math.round(totalMHActual/totalMHGiven*100):0;
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-val">${data.staff.length}</div><div class="stat-label">Total Staff</div></div>
+    <div class="stat-card"><div class="stat-val">${data.projects.length}</div><div class="stat-label">Total Projects</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHGiven.toLocaleString()}</div><div class="stat-label">Total MH Given</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHActual.toLocaleString()}</div><div class="stat-label">Total MH Actual</div></div>
+    <div class="stat-card"><div class="stat-val">${util}%</div><div class="stat-label">Overall Utilisation</div></div>
+  `;
+  // Projects
+  const dp=document.getElementById('dash-projects');
+  if(!data.projects.length){ dp.innerHTML='<div class="empty">No projects yet.</div>'; }
+  else {
+    dp.innerHTML='<div class="table-wrap"><table><thead><tr><th>Project</th><th>Section</th><th>MH Given</th><th>Actual</th></tr></thead><tbody>'+
+      data.projects.slice(0,8).map(p=>{
+        const actual=projTotalMHActual(p)||p.mhActual||0;
+        return `<tr><td>${esc(p.name)}</td><td><span class="badge badge-blue">${esc(p.section)}</span></td><td>${(p.mhGiven||0).toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;
+      }).join('')+'</tbody></table></div>';
+  }
+  // Staff
+  const ds=document.getElementById('dash-staff');
+  if(!data.staff.length){ ds.innerHTML='<div class="empty">No staff yet.</div>'; }
+  else {
+    ds.innerHTML='<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Projects</th><th>MH Actual</th></tr></thead><tbody>'+
+      data.staff.slice(0,8).map(s=>`<tr><td>${esc(s.name)}</td><td><span class="badge badge-green">${esc(s.role)}</span></td><td>${staffProjectCount(s.id)}</td><td>${staffTotalMH(s.id,'mhActual').toLocaleString()}</td></tr>`).join('')+
+      '</tbody></table></div>';
+  }
+}
+ 
+// ===================== CHART =====================
+let mhChartInst=null;
+function buildYearList(){
+  const years=new Set();
+  const curYear=new Date().getFullYear();
+  years.add(curYear); years.add(curYear-1); years.add(curYear+1);
+  data.projects.forEach(p=>{
+    if(p.months) p.months.forEach(m=>{ const y=m.label.split(' ')[1]; if(y) years.add(parseInt(y)); });
+    if(p.startDate){ const y=p.startDate.split('/')[1]; if(y) years.add(parseInt(y)); }
+  });
+  return [...years].sort();
+}
+
+function switchChartTab(tab){
+  document.querySelectorAll('#chart-subtabs .tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='mh'?0:1)));
+  document.getElementById('chart-tab-mh').style.display=tab==='mh'?'block':'none';
+  document.getElementById('chart-tab-progress').style.display=tab==='progress'?'block':'none';
+  if(tab==='progress') renderProgressChart();
+}
+
+function buildChartSectionList(){
+  const sel=document.getElementById('chart-section');
+  const cur=sel.value;
+  const sections=[...new Set(data.projects.map(p=>p.section).filter(Boolean))].sort();
+  sel.innerHTML='<option value="all">All Sections</option>'+sections.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
+  sel.value=cur;
+}
+
+function getMaxMHForGroup(groupFilter, year){
+  // count staff matching group, multiply by 160/month
+  let staffList=data.staff;
+  if(groupFilter==='engineers') staffList=staffList.filter(s=>s.category==='engineer');
+  else if(groupFilter==='dd') staffList=staffList.filter(s=>s.category==='designer_drafter');
+  else if(groupFilter!=='all') staffList=staffList.filter(s=>s.category==='engineer'&&s.section===groupFilter);
+  return staffList.length * MAX_MH_PER_STAFF; // per month
+}
+
+function renderChart(){
+  buildChartSectionList();
+  const yearSel=document.getElementById('chart-year');
+  const years=buildYearList();
+  const curYear=new Date().getFullYear();
+  const savedYear=yearSel.value;
+  yearSel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearSel.value=savedYear&&years.includes(+savedYear)?savedYear:curYear;
+  const year=+yearSel.value;
+  const sectionFilter=document.getElementById('chart-section').value;
+
+  // Build group tabs dynamically
+  const engSections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
+  const groups=[
+    {key:'engineers',label:'All Engineers'},
+    {key:'dd',label:'Designers & Drafters'},
+    ...engSections.map(s=>({key:s,label:s}))
+  ];
+
+  const chartWrap=document.getElementById('chart-tab-mh');
+  // rebuild group selector if not present
+  let groupSel=document.getElementById('chart-group-sel');
+  if(!groupSel){
+    const ctrl=document.createElement('div');
+    ctrl.className='chart-controls';
+    ctrl.style.marginTop='12px';
+    ctrl.innerHTML=`<div><label>View Group</label><select id="chart-group-sel" onchange="renderChart()" style="width:200px"></select></div>`;
+    chartWrap.insertBefore(ctrl, chartWrap.querySelector('.chart-wrap'));
+    groupSel=document.getElementById('chart-group-sel');
+  }
+  const curGroup=groupSel.value||'engineers';
+  groupSel.innerHTML=groups.map(g=>`<option value="${g.key}">${esc(g.label)}</option>`).join('');
+  groupSel.value=groups.find(g=>g.key===curGroup)?curGroup:groups[0]?.key||'engineers';
+  const groupKey=groupSel.value;
+
+  // Determine which projects to include based on group
+  let projs=data.projects;
+  if(sectionFilter!=='all') projs=projs.filter(p=>p.section===sectionFilter);
+  // For engineers/section groups filter projects by section staff involvement
+  // We distribute MH by staff in that group
+  const groupStaff=groupKey==='engineers'
+    ? data.staff.filter(s=>s.category==='engineer').map(s=>s.id)
+    : groupKey==='dd'
+    ? data.staff.filter(s=>s.category==='designer_drafter').map(s=>s.id)
+    : data.staff.filter(s=>s.category==='engineer'&&s.section===groupKey).map(s=>s.id);
+
+  const givenByMonth=Array(12).fill(0);
+  const actualByMonth=Array(12).fill(0);
+
+  projs.forEach(p=>{
+    const projMhGiven=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhGiven||0),0);
+    const projMhActual=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhActual||0),0);
+    if(p.months&&p.months.length){
+      const projMonthsInYear=p.months.filter(m=>parseInt(m.label.split(' ')[1])===year);
+      const totalMo=p.months.length||1;
+      projMonthsInYear.forEach(m=>{
+        const mo=MONTHS.indexOf(m.label.split(' ')[0]);
+        if(mo>=0){
+          givenByMonth[mo]+=Math.round(projMhGiven/totalMo);
+          actualByMonth[mo]+=Math.round(projMhActual/totalMo);
+        }
+      });
+    } else {
+      const s=parseMMYYYY(p.startDate); const e=parseMMYYYY(p.endDate);
+      if(s&&e){
+        for(let mo=0;mo<12;mo++){
+          const cy=year, cm=mo+1;
+          if((cy>s.year||(cy===s.year&&cm>=s.month))&&(cy<e.year||(cy===e.year&&cm<=e.month))){
+            const dur=diffMonths(s,e)||1;
+            givenByMonth[mo]+=Math.round(projMhGiven/dur);
+            actualByMonth[mo]+=Math.round(projMhActual/dur);
+          }
+        }
+      }
+    }
+  });
+
+  const maxMH=getMaxMHForGroup(groupKey, year);
+  const ctx=document.getElementById('mh-chart').getContext('2d');
+  if(mhChartInst) mhChartInst.destroy();
+  mhChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:MONTHS,
+      datasets:[
+        {label:'MH Given',data:givenByMonth,backgroundColor:'rgba(232,160,32,.8)',borderRadius:4},
+        {label:'MH Actual',data:actualByMonth,backgroundColor:'rgba(93,173,226,.8)',borderRadius:4},
+        {label:`Max MH (${maxMH.toLocaleString()})`,data:Array(12).fill(maxMH),type:'line',borderColor:'rgba(192,57,43,.7)',borderWidth:2,pointRadius:0,fill:false,tension:0}
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{labels:{color:'#e8e8e8',font:{size:12}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`}}
+      },
+      scales:{
+        x:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,.05)'}},
+        y:{ticks:{color:'#888',callback:v=>v.toLocaleString()},grid:{color:'rgba(255,255,255,.05)'},suggestedMax:maxMH+200}
+      }
+    }
+  });
+}
+
+function renderProgressChart(){
+  const search=(document.getElementById('progress-search')?.value||'').toLowerCase().trim();
+  let projs=data.projects;
+  if(search) projs=projs.filter(p=>p.name.toLowerCase().includes(search)||p.projectId.toLowerCase().includes(search));
+
+  const container=document.getElementById('progress-chart-list');
+  if(!projs.length){ container.innerHTML='<div class="empty">No projects match.</div>'; return; }
+
+  const PROG_COLORS=['#e8a020','#5dade2','#58d68d','#af7ac5','#ec7063','#45b39d','#f0b27a','#85c1e9'];
+  let html='';
+  projs.forEach((p,pi)=>{
+    const months=p.months||[];
+    const lead=data.staff.find(s=>s.id===p.lead);
+    const color=PROG_COLORS[pi%PROG_COLORS.length];
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong style="font-size:14px">${esc(p.name)}</strong>
+          <span class="text-muted" style="font-size:12px;margin-left:8px">${esc(p.projectId)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">Lead: <strong style="color:var(--text)">${lead?esc(lead.name):'-'}</strong> &nbsp;|&nbsp; ${esc(p.startDate)} – ${esc(p.endDate)}</div>
+      </div>`;
+    if(months.length){
+      html+=`<div style="margin-bottom:10px">
+        <div style="display:flex;border-radius:6px;overflow:hidden;height:28px;width:100%">`;
+      months.forEach((m,i)=>{
+        const bg=`hsl(${(i/months.length)*260+20},70%,${m.progress>0?45:20}%)`;
+        html+=`<div style="flex:1;background:${bg};display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600" title="${m.label}: ${m.progress}%">${m.progress>0?m.progress+'%':''}</div>`;
+      });
+      html+=`</div><div style="display:flex;margin-top:4px">`;
+      months.forEach(m=>{
+        html+=`<div style="flex:1;text-align:center;font-size:10px;color:var(--text-muted)">${m.label.split(' ')[0]}<br>${m.label.split(' ')[1]}</div>`;
+      });
+      html+=`</div></div><canvas id="prog-chart-${p.id}" height="60"></canvas>`;
+    } else {
+      html+=`<div class="empty" style="padding:12px">No monthly progress data entered yet.</div>`;
+    }
+    html+=`</div>`;
+  });
+  container.innerHTML=html||'<div class="empty">No projects match.</div>';
+  projs.forEach((p,pi)=>{
+    if(!p.months||!p.months.length) return;
+    const canvas=document.getElementById('prog-chart-'+p.id);
+    if(!canvas) return;
+    const color=PROG_COLORS[pi%PROG_COLORS.length];
+    new Chart(canvas.getContext('2d'),{
+      type:'line',
+      data:{
+        labels:p.months.map(m=>m.label),
+        datasets:[{label:'Progress %',data:p.months.map(m=>m.progress),borderColor:color,backgroundColor:color+'33',fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:color}]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Progress: ${c.raw}%`}}},
+        scales:{
+          x:{ticks:{color:'#888',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+          y:{min:0,max:100,ticks:{color:'#888',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.04)'}}
+        }
+      }
+    });
+  });
+}
+ 
+// ===================== EXCEL EXPORT =====================
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+ 
+  // Staff sheet
+  const staffRows=[['Staff ID','Name','Category','Section','Role','Status']];
+  data.staff.forEach(s=>staffRows.push([s.id,s.name,s.category,s.section,s.role,s.status]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(staffRows),'Staff');
+ 
+  // Projects sheet
+  const projRows=[['ID','Project ID','Name','Section','Lead Staff ID','Duty Staff IDs','MH Given','MH Actual','Start Date','End Date','Duration','Months & Progress']];
+  data.projects.forEach(p=>{
+    const monthStr=(p.months||[]).map(m=>`${m.label}:${m.progress}%`).join('; ');
+    const dutyStr=(p.dutyStaff||[]).join(',');
+    projRows.push([p.id,p.projectId,p.name,p.section,p.lead,dutyStr,p.mhGiven,p.mhActual,p.startDate,p.endDate,p.duration,monthStr]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(projRows),'Projects');
+ 
+  // Staff MH sheet
+  const mhRows=[['Record ID','Staff ID','Staff Name','Project ID','Project Name','MH Given','MH Actual']];
+  data.staffMH.forEach(m=>{
+    const s=data.staff.find(x=>x.id===m.staffId);
+    const p=data.projects.find(x=>x.id===m.projectId);
+    mhRows.push([m.id,m.staffId,s?s.name:'',m.projectId,p?p.name:'',m.mhGiven,m.mhActual]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(mhRows),'Staff_MH');
+ 
+  XLSX.writeFile(wb,'ENG_Manhours_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('Excel exported');
+}
+ 
+// ===================== EXCEL IMPORT =====================
+function importExcel(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      // Staff
+      if(wb.SheetNames.includes('Staff')){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets['Staff'],{header:1}).slice(1);
+        data.staff=rows.filter(r=>r[0]).map(r=>({id:r[0],name:r[1],category:r[2],section:r[3],role:r[4],status:r[5]}));      }
+      // Projects
+      if(wb.SheetNames.includes('Projects')){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets['Projects'],{header:1}).slice(1);
+        data.projects=rows.filter(r=>r[0]).map(r=>{
+          const monthStr=r[11]||'';
+          const months=monthStr?monthStr.split('; ').filter(Boolean).map(m=>{
+            const [label,prog]=m.split(':');
+            return {label:label.trim(),progress:parseFloat(prog)||0};
+          }):[];
+          const dutyStaff=r[5]?String(r[5]).split(',').filter(Boolean):[];
+          return {id:r[0],projectId:r[1],name:r[2],section:r[3],lead:r[4],dutyStaff,mhGiven:+r[6]||0,mhActual:+r[7]||0,startDate:r[8],endDate:r[9],duration:+r[10]||0,months};
+        });
+      }
+      // Staff MH
+      if(wb.SheetNames.includes('Staff_MH')){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets['Staff_MH'],{header:1}).slice(1);
+        data.staffMH=rows.filter(r=>r[0]).map(r=>({id:r[0],staffId:r[1],projectId:r[3],mhGiven:+r[5]||0,mhActual:+r[6]||0}));
+      }
+      renderDashboard(); renderStaffTable(); renderProjTable();
+      toast('Excel imported successfully');
+    } catch(err){ toast('Import error: '+err.message); }
+  };
+  reader.readAsBinaryString(file);
+  e.target.value='';
+}
+ 
+// ===================== INIT =====================
+renderDashboard();
+renderProjTable();
+document.getElementById('page-projects').querySelectorAll('select');
+refreshLeadDropdown();
+// Build year selector
+const yearSel=document.getElementById('chart-year');
+const curYear=new Date().getFullYear();
+[curYear-1,curYear,curYear+1].forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; if(y===curYear) o.selected=true; yearSel.appendChild(o); });
+</script>
+</body>
+</html>
