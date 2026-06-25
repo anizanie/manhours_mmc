@@ -698,10 +698,10 @@ function saveProject(){
   if(editId){
     const idx=data.projects.findIndex(x=>x.id===editId);
     if(idx>=0){
-      obj.mhActual=data.projects[idx].mhActual;
       data.projects[idx]=obj;
     }
-  } else {
+  }
+   else {
     data.projects.push(obj);
   }
   cancelProjEdit();
@@ -733,9 +733,11 @@ function deleteProject(id){
   renderProjTable(); toast('Project deleted');
 }
 function cancelProjEdit(){
+  ['proj-edit-id','proj-id-input','proj-name','proj-mh-given','proj-mh-actual','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');
   leadStaffIds=[];
   document.getElementById('lead-search').value='';
-  renderLeadStaffList();  document.getElementById('proj-month-section').style.display='none';
+  renderLeadStaffList();
+  document.getElementById('proj-month-section').style.display='none';
   document.getElementById('staff-duty-search').value='';
   projMonths=[];
   dutyStaffIds=[];
