@@ -135,6 +135,15 @@
   .duty-tag button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; padding:0; }
   .duty-tag button:hover { color:var(--danger); }
 
+  .search-select-wrap { position:relative; }
+  .search-select-wrap input.ss-search { margin-bottom:4px; }
+  .ss-dropdown { position:absolute; z-index:200; width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); max-height:200px; overflow-y:auto; display:none; }
+  .ss-dropdown.open { display:block; }
+  .ss-option { padding:8px 12px; font-size:13px; cursor:pointer; }
+  .ss-option:hover, .ss-option.selected { background:rgba(232,160,32,.12); color:var(--accent); }
+  .ss-option.no-match { color:var(--text-muted); cursor:default; }
+  .ss-option.no-match:hover { background:none; color:var(--text-muted); }
+
 </style>
 </head>
 <body>
@@ -213,6 +222,9 @@
   </div>
   <div class="card">
     <h3>Staff List</h3>
+    <div class="form-group" style="margin-bottom:14px">
+      <input id="staff-list-search" placeholder="Search by name, section or role..." oninput="renderStaffTable()" style="max-width:360px">
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>Projects</th><th>Total MH Given</th><th>Total MH Actual</th><th>Actions</th></tr></thead>        <tbody id="staff-table"></tbody>
@@ -236,6 +248,9 @@
         <select id="proj-lead"><option value="">Select lead</option></select>
       </div>
       <div class="form-group"><label>MH Given (Project Total)</label><input id="proj-mh-given" type="number" placeholder="0"></div>
+    </div>
+    <div class="form-row cols2">
+      <div class="form-group"><label>MH Actual (Project Total)</label><input id="proj-mh-actual" type="number" placeholder="0"></div>
     </div>
     <div class="form-group">
       <label>Staff on Duty</label>
@@ -266,6 +281,9 @@
   </div>
   <div class="card">
     <h3>Project List</h3>
+    <div class="form-group" style="margin-bottom:14px">
+      <input id="proj-list-search" placeholder="Search by project ID or name..." oninput="renderProjTable()" style="max-width:360px">
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Project ID</th><th>Name</th><th>Lead</th><th>Duration</th><th>Start</th><th>End</th><th>MH Given</th><th>MH Actual</th><th>Staff Count</th><th>Actions</th></tr></thead>
@@ -280,7 +298,6 @@
   <h2>Manhours Input</h2>
   <div class="tabs">
     <button class="tab active" onclick="switchMhTab('staff')">By Staff</button>
-    <button class="tab" onclick="switchMhTab('project')">By Project</button>
   </div>
  
   <!-- MH BY STAFF -->
@@ -289,10 +306,10 @@
       <h3>Assign Staff Manhours to Project</h3>
       <div class="form-row cols2">
         <div class="form-group"><label>Select Staff</label>
-          <select id="mh-staff-select" onchange="onMhStaffChange()"><option value="">-- Select Staff --</option></select>
+          <div class="search-select-wrap" id="mh-staff-wrap"></div>
         </div>
         <div class="form-group"><label>Select Project</label>
-          <select id="mh-proj-select" onchange="onMhProjChange()"><option value="">-- Select Project --</option></select>
+          <div class="search-select-wrap" id="mh-proj-wrap"></div>
         </div>
       </div>
       <div id="mh-staff-details" style="display:none">
@@ -314,28 +331,7 @@
     </div>
   </div>
  
-  <!-- MH BY PROJECT -->
-  <div class="tab-content" id="mh-tab-project">
-    <div class="card">
-      <h3>Project Monthly Progress & MH</h3>
-      <div class="form-group"><label>Select Project</label>
-        <select id="mh-proj-only-select" onchange="onMhProjOnlyChange()"><option value="">-- Select Project --</option></select>
-      </div>
-      <div id="mh-proj-details" style="display:none">
-        <div style="background:var(--surface2); border-radius:var(--radius); padding:12px; margin-bottom:14px;" id="mh-proj-info"></div>
-        <div class="form-row cols2">
-          <div class="form-group"><label>MH Given (Project Total)</label><input id="mh-proj-given" type="number"></div>
-          <div class="form-group"><label>MH Actual (Project Total)</label><input id="mh-proj-actual" type="number"></div>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-          <h3 style="margin:0">Monthly Progress (%)</h3>
-          <button class="btn btn-secondary btn-sm" onclick="addProjExtraMonth()">+ Add Month (Extension)</button>
-        </div>
-        <div class="month-grid" id="mh-proj-months"></div>
-        <div class="btn-row"><button class="btn btn-primary" onclick="saveMhProj()">Save Project MH & Progress</button></div>
-      </div>
-    </div>
-  </div>
+  
 </div>
  
 <!-- REPORTS -->
@@ -373,10 +369,10 @@
           </select>
         </div>
         <div class="form-group"><label>Filter by Staff</label>
-          <select id="rep-staff-filter" onchange="renderStaffInvolvement()"><option value="all">All Staff</option></select>
+          <div class="search-select-wrap" id="rep-staff-wrap"></div>
         </div>
         <div class="form-group"><label>Filter by Project</label>
-          <select id="rep-proj-inv-filter" onchange="renderStaffInvolvement()"><option value="all">All Projects</option></select>
+          <div class="search-select-wrap" id="rep-proj-inv-wrap"></div>
         </div>
       </div>
     </div>
@@ -386,8 +382,8 @@
   <!-- PROJECT STAFF -->
   <div class="tab-content" id="rep-tab-project-staff">
     <div class="card">
-      <div class="form-group"><label>Filter by Project</label>
-        <select id="rep-proj-filter" onchange="renderProjectStaff()"><option value="all">All Projects</option></select>
+      <div class="form-group" style="max-width:400px"><label>Filter by Project</label>
+        <div class="search-select-wrap" id="rep-proj-filter-wrap"></div>
       </div>
     </div>
     <div id="proj-staff-content"></div>
@@ -400,11 +396,6 @@
   <div class="chart-controls">
     <div><label>Year</label>
       <select id="chart-year" onchange="renderChart()" style="width:120px"></select>
-    </div>
-    <div><label>Section Filter</label>
-      <select id="chart-section" onchange="renderChart()" style="width:160px">
-        <option value="all">All Sections</option>
-      </select>
     </div>
   </div>
  <div class="tabs" id="chart-subtabs" style="margin-bottom:0">
@@ -428,9 +419,9 @@
 
   <div id="chart-tab-progress" style="display:none; margin-top:16px">
     <div class="card">
-      <div class="form-group" style="margin-bottom:0">
-        <label>Search Project</label>
-        <input id="progress-search" placeholder="Type project name or ID..." oninput="renderProgressChart()" style="max-width:360px">
+      <div class="form-group" style="margin-bottom:0;max-width:400px">
+        <label>Search / Select Project</label>
+        <div class="search-select-wrap" id="progress-proj-wrap"></div>
       </div>
     </div>
     <div id="progress-chart-list"></div>
@@ -443,6 +434,7 @@
 <div id="toast"></div>
  
 <script>
+
 // ===================== DATA STORE =====================
 let data = {
   staff: [],
@@ -457,7 +449,54 @@ const MAX_MH_PER_STAFF = 160;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];function uid(prefix){ return prefix + (Date.now() % 1e9) + Math.floor(Math.random()*1000); }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2500); }
 function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
- 
+// ===================== SEARCHABLE SELECT =====================
+function buildSearchSelect(wrapperId, options, onSelect, placeholder){
+  const wrap=document.getElementById(wrapperId);
+  if(!wrap) return;
+  wrap.innerHTML=`
+    <input class="ss-search" placeholder="${placeholder||'Search...'}" autocomplete="off" style="width:100%">
+    <div class="ss-dropdown"></div>
+    <input type="hidden" class="ss-value">`;
+  const search=wrap.querySelector('.ss-search');
+  const dropdown=wrap.querySelector('.ss-dropdown');
+  const hidden=wrap.querySelector('.ss-value');
+  function renderOpts(filter){
+    const f=(filter||'').toLowerCase();
+    const filtered=options.filter(o=>o.label.toLowerCase().includes(f));
+    dropdown.innerHTML=filtered.length
+      ? filtered.map(o=>`<div class="ss-option" data-val="${o.value}">${o.label}</div>`).join('')
+      : '<div class="ss-option no-match">No results</div>';
+    dropdown.querySelectorAll('.ss-option:not(.no-match)').forEach(el=>{
+      el.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        hidden.value=el.dataset.val;
+        search.value=el.textContent;
+        dropdown.classList.remove('open');
+        if(onSelect) onSelect(el.dataset.val);
+      });
+    });
+  }
+  search.addEventListener('input',()=>{ renderOpts(search.value); dropdown.classList.add('open'); });
+  search.addEventListener('focus',()=>{ renderOpts(search.value); dropdown.classList.add('open'); });
+  search.addEventListener('blur',()=>{ setTimeout(()=>dropdown.classList.remove('open'),150); });
+  renderOpts('');
+}
+function ssGetValue(wrapperId){ const el=document.getElementById(wrapperId)?.querySelector('.ss-value'); return el?el.value:''; }
+function ssSetValue(wrapperId, value, label){
+  const wrap=document.getElementById(wrapperId); if(!wrap) return;
+  const hidden=wrap.querySelector('.ss-value');
+  const search=wrap.querySelector('.ss-search');
+  if(hidden) hidden.value=value;
+  if(search) search.value=label||'';
+}
+function ssClear(wrapperId){
+  const wrap=document.getElementById(wrapperId); if(!wrap) return;
+  const hidden=wrap.querySelector('.ss-value');
+  const search=wrap.querySelector('.ss-search');
+  if(hidden) hidden.value='';
+  if(search) search.value='';
+}
+
 // ===================== NAV =====================
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -542,8 +581,11 @@ function staffProjectCount(staffId){
 }
 function renderStaffTable(){
   const tbody=document.getElementById('staff-table');
-  if(!data.staff.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">No staff yet. Add staff above.</td></tr>'; return; }
-tbody.innerHTML=data.staff.map((s,i)=>`
+  const staffSearch=(document.getElementById('staff-list-search')?.value||'').toLowerCase();
+  const staffFiltered=data.staff.filter(s=>!staffSearch||s.name.toLowerCase().includes(staffSearch)||s.section.toLowerCase().includes(staffSearch)||s.role.toLowerCase().includes(staffSearch));
+  if(!staffFiltered.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">No staff found.</td></tr>'; return; }
+  tbody.innerHTML=staffFiltered.map((s,i)=>`
+
     <tr>
       <td>${i+1}</td>
       <td><strong>${esc(s.name)}</strong></td>
@@ -635,6 +677,7 @@ function saveProject(){
   const s=parseMMYYYY(startVal);
   const e=parseMMYYYY(endVal);
   const duration=s&&e&&diffMonths(s,e)>0?diffMonths(s,e):0;
+  const mhActual=+document.getElementById('proj-mh-actual').value||0;
   const obj={
     id:editId||uid('P'),
     projectId:pid,
@@ -643,7 +686,7 @@ function saveProject(){
     lead,
     dutyStaff:[...dutyStaffIds],
     mhGiven,
-    mhActual:0,
+    mhActual,
     startDate:startVal,
     endDate:endVal,
     duration,
@@ -671,8 +714,9 @@ function editProject(id){
   dutyStaffIds=p.dutyStaff?[...p.dutyStaff]:[];
   refreshLeadDropdown();
   document.getElementById('proj-lead').value=p.lead;
-  document.getElementById('proj-mh-given').value=p.mhGiven;  document.getElementById('proj-start').value=p.startDate;
-  document.getElementById('proj-end').value=p.endDate;
+  document.getElementById('proj-mh-given').value=p.mhGiven;
+  document.getElementById('proj-mh-actual').value=p.mhActual||0;
+  document.getElementById('proj-start').value=p.startDate;  document.getElementById('proj-end').value=p.endDate;
   document.getElementById('proj-duration').value=p.duration+(p.duration===1?' month':' months');
   projMonths=p.months?[...p.months]:[];
   if(projMonths.length){ document.getElementById('proj-month-section').style.display='block'; renderMonthInputs(); }
@@ -686,8 +730,7 @@ function deleteProject(id){
   renderProjTable(); toast('Project deleted');
 }
 function cancelProjEdit(){
-  ['proj-edit-id','proj-id-input','proj-name','proj-mh-given','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('proj-lead').value='';
+  ['proj-edit-id','proj-id-input','proj-name','proj-mh-given','proj-mh-actual','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');  document.getElementById('proj-lead').value='';
   document.getElementById('proj-month-section').style.display='none';
   document.getElementById('staff-duty-search').value='';
   projMonths=[];
@@ -752,8 +795,10 @@ function projTotalMHActual(proj){
 function renderProjTable(){
   refreshLeadDropdown();
   const tbody=document.getElementById('proj-table');
-  if(!data.projects.length){ tbody.innerHTML='<tr><td colspan="11" class="empty">No projects yet.</td></tr>'; return; }
-  tbody.innerHTML=data.projects.map(p=>{
+  const projSearch=(document.getElementById('proj-list-search')?.value||'').toLowerCase();
+  const projsFiltered=data.projects.filter(p=>!projSearch||p.name.toLowerCase().includes(projSearch)||p.projectId.toLowerCase().includes(projSearch));
+  if(!projsFiltered.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">No projects found.</td></tr>'; return; }
+  tbody.innerHTML=projsFiltered.map(p=>{
     const leadName=data.staff.find(s=>s.id===p.lead)?.name||'-';
     const actual=projTotalMHActual(p);
     return `<tr>
@@ -782,37 +827,32 @@ function switchMhTab(tab){
   document.getElementById('mh-tab-project').classList.toggle('active',tab==='project');
 }
 function refreshMhDropdowns(){
-  // staff
-  const ss=document.getElementById('mh-staff-select');
-  const cv=ss.value;
-  ss.innerHTML='<option value="">-- Select Staff --</option>'+data.staff.map(s=>`<option value="${s.id}">${esc(s.name)} (${esc(s.role)} / ${esc(s.section)})</option>`).join('');
-  ss.value=cv;
-  // proj by-staff
-  onMhStaffChange();
-  // proj only
-  const po=document.getElementById('mh-proj-only-select');
-  const pv=po.value;
-  po.innerHTML='<option value="">-- Select Project --</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
-  po.value=pv;
-  onMhProjOnlyChange();
+  buildSearchSelect('mh-staff-wrap',
+    data.staff.map(s=>({value:s.id,label:`${s.name} (${s.role} / ${s.section})`})),
+    (id)=>{ onMhStaffChange(id); },
+    'Search staff...'
+  );
+  buildSearchSelect('mh-proj-wrap', [], (id)=>{ onMhProjChange(id); }, 'Select project first...');
 }
-function onMhStaffChange(){
-  const staffId=document.getElementById('mh-staff-select').value;
-  const ps=document.getElementById('mh-proj-select');
-  // Only show projects where this staff is on duty
+
+function onMhStaffChange(staffId){
+  if(staffId===undefined) staffId=ssGetValue('mh-staff-wrap');
   const assignedProjs=staffId
     ? data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.includes(staffId))
     : [];
-  ps.innerHTML='<option value="">-- Select Project --</option>'+assignedProjs.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
-  if(staffId&&assignedProjs.length===0){
-    ps.innerHTML='<option value="">No projects assigned to this staff</option>';
-  }
+  buildSearchSelect('mh-proj-wrap',
+    assignedProjs.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`})),
+    (id)=>{ onMhProjChange(id); },
+    assignedProjs.length?'Search project...':'No projects assigned'
+  );
   document.getElementById('mh-staff-details').style.display='none';
-  if(staffId){ showStaffMhSummary(staffId); } else { document.getElementById('mh-staff-summary-card').style.display='none'; }
+  if(staffId){ showStaffMhSummary(staffId); }
+  else { document.getElementById('mh-staff-summary-card').style.display='none'; }
 }
-function onMhProjChange(){
-  const staffId=document.getElementById('mh-staff-select').value;
-  const projId=document.getElementById('mh-proj-select').value;
+
+function onMhProjChange(projId){
+  if(projId===undefined) projId=ssGetValue('mh-proj-wrap');
+  const staffId=ssGetValue('mh-staff-wrap');
   const det=document.getElementById('mh-staff-details');
   if(!staffId||!projId){ det.style.display='none'; return; }
   det.style.display='block';
@@ -820,9 +860,10 @@ function onMhProjChange(){
   document.getElementById('mh-staff-given').value=existing?existing.mhGiven:'';
   document.getElementById('mh-staff-actual').value=existing?existing.mhActual:'';
 }
+
 function saveMhStaff(){
-  const staffId=document.getElementById('mh-staff-select').value;
-  const projId=document.getElementById('mh-proj-select').value;
+  const staffId=ssGetValue('mh-staff-wrap');
+  const projId=ssGetValue('mh-proj-wrap');
   const mhGiven=+document.getElementById('mh-staff-given').value||0;
   const mhActual=+document.getElementById('mh-staff-actual').value||0;
   if(!staffId||!projId){ toast('Select staff and project'); return; }
@@ -916,18 +957,22 @@ function switchRepTab(tab){
   if(tab==='staff-involvement') renderStaffInvolvement();
   if(tab==='project-staff') renderProjectStaff();
 }
+
 function refreshReportDropdowns(){
-  // util filter rebuilt inside renderUtilisation()
-
-  const sf=document.getElementById('rep-staff-filter');
-  sf.innerHTML='<option value="all">All Staff</option>'+data.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
-
-  const pf=document.getElementById('rep-proj-filter');
-  pf.innerHTML='<option value="all">All Projects</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
-
-  const pif=document.getElementById('rep-proj-inv-filter');
-  if(pif) pif.innerHTML='<option value="all">All Projects</option>'+data.projects.map(p=>`<option value="${p.id}">${esc(p.projectId)} – ${esc(p.name)}</option>`).join('');
+  buildSearchSelect('rep-staff-wrap',
+    [{value:'all',label:''},...data.staff.map(s=>({value:s.id,label:s.name}))],    ()=>renderStaffInvolvement(), 'Search staff...');
+  buildSearchSelect('rep-proj-inv-wrap',
+    [{value:'all',label:''},...data.projects.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`}))],
+    ()=>renderStaffInvolvement(), 'Search project...');
+  buildSearchSelect('rep-proj-filter-wrap',
+    [{value:'all',label:''},...data.projects.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`}))],
+    ()=>renderProjectStaff(), 'Search project...');
+  // set defaults
+  ssSetValue('rep-staff-wrap','all','');
+  ssSetValue('rep-proj-inv-wrap','all','');
+  ssSetValue('rep-proj-filter-wrap','all','');
 }
+
 function renderUtilisation(){
   const uf=document.getElementById('util-filter');
   const cur=uf.value;
@@ -979,9 +1024,25 @@ function renderUtilisation(){
  
 function renderStaffInvolvement(){
   const mode=document.getElementById('rep-inv-mode').value;
-  const staffFilter=document.getElementById('rep-staff-filter').value;
-  const projFilter=document.getElementById('rep-proj-inv-filter')?document.getElementById('rep-proj-inv-filter').value:'all';
+  const staffFilter=ssGetValue('rep-staff-wrap')||'all';
+  const projFilter=ssGetValue('rep-proj-inv-wrap')||'all';
   const container=document.getElementById('staff-inv-content');
+
+  // Show/hide/disable filter boxes based on mode
+  const staffWrap=document.getElementById('rep-staff-wrap');
+  const projWrap=document.getElementById('rep-proj-inv-wrap');
+  if(staffWrap){
+    const active=mode==='by-staff';
+    staffWrap.style.opacity=active?'1':'0.3';
+    staffWrap.style.pointerEvents=active?'auto':'none';
+    if(!active){ ssClear('rep-staff-wrap'); }
+  }
+  if(projWrap){
+    const active=mode==='by-project';
+    projWrap.style.opacity=active?'1':'0.3';
+    projWrap.style.pointerEvents=active?'auto':'none';
+    if(!active){ ssClear('rep-proj-inv-wrap'); }
+  }
 
   if(mode==='matrix'){
     // Show full matrix: rows=staff, cols=projects, dot if involved
@@ -1119,8 +1180,7 @@ function renderStaffInvolvement(){
 }
  
 function renderProjectStaff(){
-  const filter=document.getElementById('rep-proj-filter').value;
-  const projList=filter==='all'?data.projects:data.projects.filter(p=>p.id===filter);
+  const filter=ssGetValue('rep-proj-filter-wrap')||'all';  const projList=filter==='all'?data.projects:data.projects.filter(p=>p.id===filter);
   const container=document.getElementById('proj-staff-content');
   if(!projList.length){ container.innerHTML='<div class="empty">No projects.</div>'; return; }
   let html='';
@@ -1189,10 +1249,10 @@ function renderDashboard(){
   const dp=document.getElementById('dash-projects');
   if(!data.projects.length){ dp.innerHTML='<div class="empty">No projects yet.</div>'; }
   else {
-    dp.innerHTML='<div class="table-wrap"><table><thead><tr><th>Project</th><th>Section</th><th>MH Given</th><th>Actual</th></tr></thead><tbody>'+
+    dp.innerHTML='<div class="table-wrap"><table><thead><tr><th>Project</th><th>MH Given</th><th>Actual</th></tr></thead><tbody>'+
       data.projects.slice(0,8).map(p=>{
         const actual=projTotalMHActual(p)||p.mhActual||0;
-        return `<tr><td>${esc(p.name)}</td><td><span class="badge badge-blue">${esc(p.section)}</span></td><td>${(p.mhGiven||0).toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;
+        return `<tr><td>${esc(p.name)}</td></td><td>${(p.mhGiven||0).toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;
       }).join('')+'</tbody></table></div>';
   }
   // Staff
@@ -1222,15 +1282,15 @@ function switchChartTab(tab){
   document.querySelectorAll('#chart-subtabs .tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='mh'?0:1)));
   document.getElementById('chart-tab-mh').style.display=tab==='mh'?'block':'none';
   document.getElementById('chart-tab-progress').style.display=tab==='progress'?'block':'none';
-  if(tab==='progress') renderProgressChart();
-}
+  if(tab==='progress'){
+    buildSearchSelect('progress-proj-wrap',
+      [{value:'all',label:'All Projects'},...data.projects.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`}))],
+      ()=>renderProgressChart(), 'Search or select project...');
+    ssSetValue('progress-proj-wrap','all','');    renderProgressChart();
+  }}
 
 function buildChartSectionList(){
-  const sel=document.getElementById('chart-section');
-  const cur=sel.value;
-  const sections=[...new Set(data.projects.map(p=>p.section).filter(Boolean))].sort();
-  sel.innerHTML='<option value="all">All Sections</option>'+sections.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
-  sel.value=cur;
+  // section filter removed from chart page
 }
 
 function getMaxMHForGroup(groupFilter, year){
@@ -1251,8 +1311,7 @@ function renderChart(){
   yearSel.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
   yearSel.value=savedYear&&years.includes(+savedYear)?savedYear:curYear;
   const year=+yearSel.value;
-  const sectionFilter=document.getElementById('chart-section').value;
-
+  const sectionFilter='all';
   // Build group tabs dynamically
   const engSections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
   const groups=[
@@ -1279,7 +1338,6 @@ function renderChart(){
 
   // Determine which projects to include based on group
   let projs=data.projects;
-  if(sectionFilter!=='all') projs=projs.filter(p=>p.section===sectionFilter);
   // For engineers/section groups filter projects by section staff involvement
   // We distribute MH by staff in that group
   const groupStaff=groupKey==='engineers'
@@ -1347,9 +1405,10 @@ function renderChart(){
 }
 
 function renderProgressChart(){
-  const search=(document.getElementById('progress-search')?.value||'').toLowerCase().trim();
-  let projs=data.projects;
-  if(search) projs=projs.filter(p=>p.name.toLowerCase().includes(search)||p.projectId.toLowerCase().includes(search));
+  const selVal=ssGetValue('progress-proj-wrap')||'all';
+  let projs=selVal&&selVal!=='all'
+    ? data.projects.filter(p=>p.id===selVal)
+    : data.projects;
 
   const container=document.getElementById('progress-chart-list');
   if(!projs.length){ container.innerHTML='<div class="empty">No projects match.</div>'; return; }
