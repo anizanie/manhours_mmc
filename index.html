@@ -250,12 +250,7 @@
         <div id="lead-staff-list" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);max-height:160px;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px"></div>
         <div id="lead-staff-selected" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
-      <div class="form-group"><label>MH Given (Project Total)</label><input id="proj-mh-given" type="number" placeholder="0"></div>
-    </div>
-    <div class="form-row cols2">
-      <div class="form-group"><label>MH Actual (Project Total)</label><input id="proj-mh-actual" type="number" placeholder="0"></div>
-    </div>
-    <div class="form-group">
+      <div class="form-group">
       <label>Staff on Duty</label>
       <div style="position:relative">
         <input id="staff-duty-search" placeholder="Search staff by name..." oninput="filterDutyStaff()" autocomplete="off"
@@ -263,6 +258,7 @@
         <div id="staff-duty-list" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px"></div>
         <div id="staff-duty-selected" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
+    </div>
     </div>
     <div class="form-row cols2">
       <div class="form-group"><label>Start Date (MM/YYYY)</label><input id="proj-start" placeholder="MM/YYYY" maxlength="7" oninput="onProjDateChange()"></div>
@@ -289,7 +285,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Project ID</th><th>Name</th><th>Lead</th><th>Duration</th><th>Start</th><th>End</th><th>MH Given</th><th>MH Actual</th><th>Staff Count</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Project ID</th><th>Name</th><th>Lead</th><th>Duration</th><th>Start</th><th>End</th><th>Staff Count</th><th>Actions</th></tr></thead>
         <tbody id="proj-table"></tbody>
       </table>
     </div>
@@ -349,11 +345,18 @@
   <!-- UTILISATION -->
   <div class="tab-content active" id="rep-tab-utilisation">
     <div class="card">
-      <h3>Filter</h3>
-      <div class="form-row cols2">
+      <div class="form-row cols3">
+        <div class="form-group"><label>Year</label>
+          <select id="util-year" onchange="renderUtilisation()"></select>
+        </div>
         <div class="form-group"><label>Filter by Section</label>
           <select id="util-filter" onchange="renderUtilisation()">
             <option value="all">All Sections</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Filter by Staff</label>
+          <select id="util-staff-filter" onchange="renderUtilisation()">
+            <option value="all">All Staff</option>
           </select>
         </div>
       </div>
@@ -456,6 +459,12 @@ function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function buildSearchSelect(wrapperId, options, onSelect, placeholder){
   const wrap=document.getElementById(wrapperId);
   if(!wrap) return;
+  // sort options alphabetically, keeping any leading blank/all option first
+  const sorted=[...options].sort((a,b)=>{
+    if(a.value==='all') return -1;
+    if(b.value==='all') return 1;
+    return a.label.localeCompare(b.label);
+  });
   wrap.innerHTML=`
     <input class="ss-search" placeholder="${placeholder||'Search...'}" autocomplete="off" style="width:100%">
     <div class="ss-dropdown"></div>
@@ -465,15 +474,15 @@ function buildSearchSelect(wrapperId, options, onSelect, placeholder){
   const hidden=wrap.querySelector('.ss-value');
   function renderOpts(filter){
     const f=(filter||'').toLowerCase();
-    const filtered=options.filter(o=>o.label.toLowerCase().includes(f));
+    const filtered=sorted.filter(o=>o.label.toLowerCase().includes(f));
     dropdown.innerHTML=filtered.length
-      ? filtered.map(o=>`<div class="ss-option" data-val="${o.value}">${o.label}</div>`).join('')
+      ? filtered.map(o=>`<div class="ss-option${hidden.value===o.value?' selected':''}" data-val="${o.value}" data-label="${o.label.replace(/"/g,'&quot;')}">${o.label}</div>`).join('')
       : '<div class="ss-option no-match">No results</div>';
     dropdown.querySelectorAll('.ss-option:not(.no-match)').forEach(el=>{
       el.addEventListener('mousedown',e=>{
         e.preventDefault();
         hidden.value=el.dataset.val;
-        search.value=el.textContent;
+        search.value=el.dataset.label;
         dropdown.classList.remove('open');
         if(onSelect) onSelect(el.dataset.val);
       });
@@ -484,6 +493,7 @@ function buildSearchSelect(wrapperId, options, onSelect, placeholder){
   search.addEventListener('blur',()=>{ setTimeout(()=>dropdown.classList.remove('open'),150); });
   renderOpts('');
 }
+
 function ssGetValue(wrapperId){ const el=document.getElementById(wrapperId)?.querySelector('.ss-value'); return el?el.value:''; }
 function ssSetValue(wrapperId, value, label){
   const wrap=document.getElementById(wrapperId); if(!wrap) return;
@@ -510,7 +520,7 @@ function showPage(id){
   if(id==='staff') renderStaffTable();
   if(id==='projects') renderProjTable();
   if(id==='manhours') { refreshMhDropdowns(); }
-  if(id==='reports') { refreshReportDropdowns(); renderUtilisation(); }
+  if(id==='reports') { refreshReportDropdowns(); renderUtilisation(); renderStaffInvolvement(); }
   if(id==='chart') renderChart();
 }
  
@@ -673,14 +683,14 @@ function saveProject(){
   const pid=document.getElementById('proj-id-input').value.trim();
   const name=document.getElementById('proj-name').value.trim();
   const section='';
-  const lead=leadStaffIds;  const mhGiven=+document.getElementById('proj-mh-given').value||0;
+  const lead=leadStaffIds;
   const startVal=document.getElementById('proj-start').value.trim();
   const endVal=document.getElementById('proj-end').value.trim();
-  if(!pid||!name){ toast('Fill Project ID and Name'); return; }  const editId=document.getElementById('proj-edit-id').value;
+  if(!pid||!name){ toast('Fill Project ID and Name'); return; }
+  const editId=document.getElementById('proj-edit-id').value;
   const s=parseMMYYYY(startVal);
   const e=parseMMYYYY(endVal);
   const duration=s&&e&&diffMonths(s,e)>0?diffMonths(s,e):0;
-  const mhActual=+document.getElementById('proj-mh-actual').value||0;
   const obj={
     id:editId||uid('P'),
     projectId:pid,
@@ -688,8 +698,6 @@ function saveProject(){
     section,
     lead,
     dutyStaff:[...dutyStaffIds],
-    mhGiven,
-    mhActual,
     startDate:startVal,
     endDate:endVal,
     duration,
@@ -717,9 +725,8 @@ function editProject(id){
   dutyStaffIds=p.dutyStaff?[...p.dutyStaff]:[];
   leadStaffIds=Array.isArray(p.lead)?[...p.lead]:(p.lead?[p.lead]:[]);
   refreshLeadDropdown();
-  document.getElementById('proj-mh-given').value=p.mhGiven;
-  document.getElementById('proj-mh-actual').value=p.mhActual||0;
-  document.getElementById('proj-start').value=p.startDate;  document.getElementById('proj-end').value=p.endDate;
+  document.getElementById('proj-start').value=p.startDate;  
+  document.getElementById('proj-end').value=p.endDate;
   document.getElementById('proj-duration').value=p.duration+(p.duration===1?' month':' months');
   projMonths=p.months?[...p.months]:[];
   if(projMonths.length){ document.getElementById('proj-month-section').style.display='block'; renderMonthInputs(); }
@@ -733,8 +740,7 @@ function deleteProject(id){
   renderProjTable(); toast('Project deleted');
 }
 function cancelProjEdit(){
-  ['proj-edit-id','proj-id-input','proj-name','proj-mh-given','proj-mh-actual','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');
-  leadStaffIds=[];
+  ['proj-edit-id','proj-id-input','proj-name','proj-start','proj-end','proj-duration'].forEach(id=>document.getElementById(id).value='');  leadStaffIds=[];
   document.getElementById('lead-search').value='';
   renderLeadStaffList();
   document.getElementById('proj-month-section').style.display='none';
@@ -835,7 +841,8 @@ function removeLeadStaff(id){
 }
 
 function projectStaffCount(projId){
-  return [...new Set(data.staffMH.filter(m=>m.projectId===projId).map(m=>m.staffId))].length;
+  const p=data.projects.find(x=>x.id===projId);
+  return p&&p.dutyStaff?p.dutyStaff.length:0;
 }
 function projTotalMHActual(proj){
   return data.staffMH.filter(m=>m.projectId===proj.id).reduce((a,m)=>a+(+m.mhActual||0),0);
@@ -849,17 +856,13 @@ function renderProjTable(){
   tbody.innerHTML=projsFiltered.map(p=>{
     const leadIds=Array.isArray(p.lead)?p.lead:(p.lead?[p.lead]:[]);
     const leadName=leadIds.map(id=>data.staff.find(s=>s.id===id)?.name).filter(Boolean).join(', ')||'-';
-    const actual=projTotalMHActual(p);
     return `<tr>
       <td><strong>${esc(p.projectId)}</strong></td>
       <td>${esc(p.name)}</td>
-      <td><span class="badge badge-blue">${esc(p.section)}</span></td>
       <td>${esc(leadName)}</td>
       <td>${p.duration||'-'} mo</td>
       <td>${esc(p.startDate)||'-'}</td>
       <td>${esc(p.endDate)||'-'}</td>
-      <td>${(p.mhGiven||0).toLocaleString()}</td>
-      <td>${actual.toLocaleString()}</td>
       <td>${projectStaffCount(p.id)}</td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="editProject('${p.id}')">Edit</button>
@@ -1024,52 +1027,135 @@ function refreshReportDropdowns(){
 }
 
 function renderUtilisation(){
+  // Build year dropdown
+  const uy=document.getElementById('util-year');
+  const years=buildYearList();
+  const curYear=new Date().getFullYear();
+  const savedYear=uy.value;
+  uy.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  uy.value=savedYear&&years.includes(+savedYear)?savedYear:curYear;
+  const year=+uy.value;
+
+  // Build section dropdown
   const uf=document.getElementById('util-filter');
-  const cur=uf.value;
+  const curSec=uf.value;
   const sections=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
   uf.innerHTML='<option value="all">All Sections</option>'+sections.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
-  uf.value=cur;
-
+  uf.value=curSec;
   const sectionFilter=uf.value;
+
+  // Build staff dropdown
+  const usf=document.getElementById('util-staff-filter');
+  const curStaff=usf.value;
+  let staffForFilter=data.staff;
+  if(sectionFilter!=='all') staffForFilter=staffForFilter.filter(s=>s.section===sectionFilter);
+  usf.innerHTML='<option value="all">All Staff</option>'+staffForFilter.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  usf.value=curStaff;
+  const staffFilter=usf.value;
+
   const container=document.getElementById('util-content');
-  if(!data.projects.length){ container.innerHTML='<div class="empty">No projects.</div>'; return; }
+  if(!data.staff.length||!data.projects.length){ container.innerHTML='<div class="empty">No data.</div>'; return; }
 
-  let sectionsToShow=sections;
-  if(sectionFilter!=='all') sectionsToShow=[sectionFilter];
+  // Filter staff
+  let staffList=data.staff;
+  if(sectionFilter!=='all') staffList=staffList.filter(s=>s.section===sectionFilter);
+  if(staffFilter!=='all') staffList=staffList.filter(s=>s.id===staffFilter);
 
-  let html='';
-  sectionsToShow.forEach(section=>{
-    const sectionStaffIds=data.staff.filter(s=>s.section===section).map(s=>s.id);
-    const projs=data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.some(id=>sectionStaffIds.includes(id)));
-    if(!projs.length) return;
-    html+=`<div class="card"><h3>${esc(section)}</h3><div class="table-wrap"><table>
-      <thead><tr><th>Project</th><th>Lead Staff</th><th>Duration</th><th>Start</th><th>End</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th><th>Progress by Month</th></tr></thead>
-      <tbody>`;
-    projs.forEach(p=>{
-      const leadIds=Array.isArray(p.lead)?p.lead:(p.lead?[p.lead]:[]);
-      const lead={name:leadIds.map(id=>data.staff.find(s=>s.id===id)?.name).filter(Boolean).join(', ')||'-'};      const actual=projTotalMHActual(p)||p.mhActual||0;
-      const util=p.mhGiven>0?Math.round(actual/p.mhGiven*100):0;
-      const monthBadges=(p.months||[]).map(m=>`<span class="tag">${esc(m.label)}: ${m.progress}%</span>`).join('');
+  if(!staffList.length){ container.innerHTML='<div class="empty">No staff match filter.</div>'; return; }
+
+  // For each staff, calculate monthly MH for the selected year
+  // Monthly MH = staffMH.mhGiven * (month progress%) for each project they're on
+  const monthCols=MONTHS.map(m=>m+' '+year);
+
+  let html=`<div class="table-wrap"><table>
+    <thead>
+      <tr>
+        <th>Staff</th><th>Section</th><th>Level</th><th>Project</th>
+        ${MONTHS.map(m=>`<th>${m}</th>`).join('')}
+        <th>Total Given</th><th>Total Actual</th>
+      </tr>
+    </thead><tbody>`;
+
+  staffList.forEach(s=>{
+    const staffMHRecords=data.staffMH.filter(m=>m.staffId===s.id);
+    if(!staffMHRecords.length){
       html+=`<tr>
-        <td><strong>${esc(p.name)}</strong><br><span class="text-muted" style="font-size:11px">${esc(p.projectId)}</span></td>
-        <td>${lead?esc(lead.name):'-'}</td>
-        <td>${p.duration||'-'} mo</td>
-        <td>${esc(p.startDate)||'-'}</td>
-        <td>${esc(p.endDate)||'-'}</td>
-        <td>${(p.mhGiven||0).toLocaleString()}</td>
-        <td>${actual.toLocaleString()}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="progress-bar-wrap" style="flex:1"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div>
-            <span style="font-size:12px;color:var(--accent)">${util}%</span>
-          </div>
-        </td>
-        <td><div style="max-width:280px">${monthBadges||'-'}</div></td>
+        <td><strong>${esc(s.name)}</strong></td>
+        <td>${esc(s.section)}</td>
+        <td>${esc(s.role)}</td>
+        <td class="text-muted">No projects</td>
+        ${MONTHS.map(()=>`<td>-</td>`).join('')}
+        <td>0</td><td>0</td>
       </tr>`;
+      return;
+    }
+
+    let staffRowCount=0;
+    staffMHRecords.forEach((mh,mi)=>{
+      const p=data.projects.find(x=>x.id===mh.projectId);
+      if(!p) return;
+
+      // Calculate monthly MH distribution based on project monthly progress
+      const monthlyGiven=Array(12).fill(0);
+      const monthlyActual=Array(12).fill(0);
+
+      if(p.months&&p.months.length){
+        const projMonthsInYear=p.months.filter(m=>m.label.split(' ')[1]==String(year));
+        const totalProgress=p.months.reduce((a,m)=>a+(+m.progress||0),0)||100;
+        projMonthsInYear.forEach(m=>{
+          const mo=MONTHS.indexOf(m.label.split(' ')[0]);
+          if(mo>=0){
+            const pct=(+m.progress||0)/totalProgress;
+            monthlyGiven[mo]+=Math.round(mh.mhGiven*pct);
+            monthlyActual[mo]+=Math.round(mh.mhActual*pct);
+          }
+        });
+      } else {
+        // No months defined: spread evenly across project duration in that year
+        const ps=parseMMYYYY(p.startDate); const pe=parseMMYYYY(p.endDate);
+        if(ps&&pe){
+          const months=[];
+          for(let mo=0;mo<12;mo++){
+            const cm=mo+1;
+            if((year>ps.year||(year===ps.year&&cm>=ps.month))&&(year<pe.year||(year===pe.year&&cm<=pe.month)))
+              months.push(mo);
+          }
+          if(months.length){
+            months.forEach(mo=>{
+              monthlyGiven[mo]+=Math.round(mh.mhGiven/months.length);
+              monthlyActual[mo]+=Math.round(mh.mhActual/months.length);
+            });
+          }
+        }
+      }
+
+      const totalGiven=monthlyGiven.reduce((a,v)=>a+v,0);
+      const totalActual=monthlyActual.reduce((a,v)=>a+v,0);
+      const isFirst=mi===0;
+
+      html+=`<tr>
+        <td><strong>${esc(s.name)}</strong></td>
+        <td>${esc(s.section)}</td>
+        <td>${esc(s.role)}</td>
+        <td>${esc(p.name)}<br><span class="text-muted" style="font-size:10px">${esc(p.projectId)}</span></td>
+        ${monthlyGiven.map((g,i)=>g>0||monthlyActual[i]>0
+          ?`<td style="font-size:11px"><span style="color:var(--accent)">${g}</span><br><span style="color:#5dade2">${monthlyActual[i]}</span></td>`
+          :`<td style="color:var(--border)">-</td>`
+        ).join('')}
+        <td><strong>${totalGiven}</strong></td>
+        <td><strong style="color:#5dade2">${totalActual}</strong></td>
+      </tr>`;
+      staffRowCount++;
     });
-    html+=`</tbody></table></div></div>`;
   });
-  container.innerHTML=html||'<div class="empty">No data to display.</div>';
+
+  html+=`</tbody></table></div>`;
+  html+=`<div style="margin-top:8px;font-size:11px;color:var(--text-muted);display:flex;gap:16px">
+    <span><span style="color:var(--accent)">■</span> MH Given</span>
+    <span><span style="color:#5dade2">■</span> MH Actual</span>
+  </div>`;
+
+  container.innerHTML=html;
 }
  
 function renderStaffInvolvement(){
@@ -1205,21 +1291,27 @@ function renderStaffInvolvement(){
           </div>
           <div style="font-size:13px">Lead: <strong>${lead?esc(lead.name):'-'}</strong> &nbsp;|&nbsp; Staff: <strong class="text-accent">${records.length}</strong></div>
         </div>`;
-      if(records.length){
+      const dutyList=p.dutyStaff&&p.dutyStaff.length?p.dutyStaff:records.map(m=>m.staffId);
+      if(dutyList.length){
         html+=`<div class="table-wrap"><table>
           <thead><tr><th>Staff</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
-        records.forEach(m=>{
-          const s=data.staff.find(x=>x.id===m.staffId);
-          const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+        [...dutyList].sort((a,b)=>{
+          const sa=data.staff.find(x=>x.id===a);
+          const sb=data.staff.find(x=>x.id===b);
+          return (sa?.name||'').localeCompare(sb?.name||'');
+        }).forEach(staffId=>{
+          const s=data.staff.find(x=>x.id===staffId);
+          const m=records.find(x=>x.staffId===staffId);
+          const util=m&&m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
           html+=`<tr>
-            <td>${s?esc(s.name):'-'}</td>
+            <td>${s?esc(s.name):esc(staffId)}</td>
             <td>${s?(s.category==='engineer'?'Engineer':'Designer & Drafter'):'-'}</td>
             <td>${s?esc(s.section):'-'}</td>
             <td>${s?esc(s.role):'-'}</td>
             <td>${s?esc(s.status||'-'):'-'}</td>
-            <td>${(+m.mhGiven||0).toLocaleString()}</td>
-            <td>${(+m.mhActual||0).toLocaleString()}</td>
-            <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
+            <td>${m?(+m.mhGiven||0).toLocaleString():'-'}</td>
+            <td>${m?(+m.mhActual||0).toLocaleString():'-'}</td>
+            <td>${m?`<div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div>`:'-'}</td>
           </tr>`;
         });
         html+=`</tbody></table></div>`;
@@ -1250,10 +1342,10 @@ function renderProjectStaff(){
         </div>
         <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
           <span class="text-muted">Lead: <strong>${lead?esc(lead.name):'-'}</strong></span>
-          <span class="text-muted">Staff: <strong class="text-accent">${records.length}</strong></span>
+          <span class="text-muted">Staff: <strong class="text-accent">${p.dutyStaff?p.dutyStaff.length:records.length}</strong></span>          
           <span class="text-muted">${esc(p.startDate)} – ${esc(p.endDate)}</span>
-          <span class="text-muted">MH Given: <strong>${(p.mhGiven||totalGiven).toLocaleString()}</strong></span>
-          <span class="text-muted">MH Actual: <strong>${(p.mhActual||totalActual).toLocaleString()}</strong></span>
+          <span class="text-muted">MH Given: <strong>${totalGiven.toLocaleString()}</strong></span>
+          <span class="text-muted">MH Actual: <strong>${totalActual.toLocaleString()}</strong></span>
         </div>
       </div>`;
     if(p.months&&p.months.length){
@@ -1261,19 +1353,26 @@ function renderProjectStaff(){
       p.months.forEach(m=>{ html+=`<span class="tag">${esc(m.label)}: ${m.progress}%</span>`; });
       html+=`</div>`;
     }
-    if(records.length){
+    const dutyList=p.dutyStaff&&p.dutyStaff.length?p.dutyStaff:records.map(m=>m.staffId);
+    if(dutyList.length){
       html+=`<div class="table-wrap"><table>
-        <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
-      records.forEach(m=>{
-        const s=data.staff.find(x=>x.id===m.staffId);
-        const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
+        <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>Status</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+      [...dutyList].sort((a,b)=>{
+        const sa=data.staff.find(x=>x.id===a);
+        const sb=data.staff.find(x=>x.id===b);
+        return (sa?.name||'').localeCompare(sb?.name||'');
+      }).forEach(staffId=>{
+        const s=data.staff.find(x=>x.id===staffId);
+        const m=records.find(x=>x.staffId===staffId);
+        const util=m&&m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
         html+=`<tr>
-          <td>${s?esc(s.name):'-'}</td>
+          <td>${s?esc(s.name):esc(staffId)}</td>
           <td>${s?esc(s.section):'-'}</td>
           <td>${s?esc(s.role):'-'}</td>
-          <td>${(+m.mhGiven||0).toLocaleString()}</td>
-          <td>${(+m.mhActual||0).toLocaleString()}</td>
-          <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
+          <td>${s?esc(s.status||'-'):'-'}</td>
+          <td>${m?(+m.mhGiven||0).toLocaleString():'-'}</td>
+          <td>${m?(+m.mhActual||0).toLocaleString():'-'}</td>
+          <td>${m?`<div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div>`:'-'}</td>
         </tr>`;
       });
       html+=`</tbody></table></div>`;
@@ -1287,8 +1386,7 @@ function renderProjectStaff(){
  
 // ===================== DASHBOARD =====================
 function renderDashboard(){
-  const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0)+data.projects.reduce((a,p)=>a+(+p.mhGiven||0),0);
-  const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
+  const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0);  const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
   const util=totalMHGiven>0?Math.round(totalMHActual/totalMHGiven*100):0;
   document.getElementById('dash-stats').innerHTML=`
     <div class="stat-card"><div class="stat-val">${data.staff.length}</div><div class="stat-label">Total Staff</div></div>
@@ -1303,9 +1401,9 @@ function renderDashboard(){
   else {
     dp.innerHTML='<div class="table-wrap"><table><thead><tr><th>Project</th><th>MH Given</th><th>Actual</th></tr></thead><tbody>'+
       data.projects.slice(0,8).map(p=>{
-        const actual=projTotalMHActual(p)||p.mhActual||0;
-        return `<tr><td>${esc(p.name)}</td></td><td>${(p.mhGiven||0).toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;
-      }).join('')+'</tbody></table></div>';
+        const actual=projTotalMHActual(p);
+        const projGiven=data.staffMH.filter(m=>m.projectId===p.id).reduce((a,m)=>a+(+m.mhGiven||0),0);
+        return `<tr><td>${esc(p.name)}</td><td>${projGiven.toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;      }).join('')+'</tbody></table></div>';
   }
   // Staff
   const ds=document.getElementById('dash-staff');
@@ -1530,13 +1628,14 @@ function exportExcel(){
   data.staff.forEach(s=>staffRows.push([s.id,s.name,s.category,s.section,s.role,s.status]));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(staffRows),'Staff');
  
-  // Projects sheet
-  const projRows=[['ID','Project ID','Name','Section','Lead Staff ID','Duty Staff IDs','MH Given','MH Actual','Start Date','End Date','Duration','Months & Progress']];
-  data.projects.forEach(p=>{
+  // ProjectprojRowss sheet
+    const projRows=[['ID','Project ID','Name','Lead Staff IDs','Duty Staff IDs','Start Date','End Date','Duration','Months & Progress']];    
+    data.projects.forEach(p=>{
     const monthStr=(p.months||[]).map(m=>`${m.label}:${m.progress}%`).join('; ');
     const dutyStr=(p.dutyStaff||[]).join(',');
     const leadStr=Array.isArray(p.lead)?p.lead.join(','):(p.lead||'');
-    projRows.push([p.id,p.projectId,p.name,p.section,leadStr,dutyStr,p.mhGiven,p.mhActual,p.startDate,p.endDate,p.duration,monthStr]);  });
+    projRows.push([p.id,p.projectId,p.name,leadStr,dutyStr,p.startDate,p.endDate,p.duration,monthStr]);
+  });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(projRows),'Projects');
  
   // Staff MH sheet
@@ -1567,14 +1666,15 @@ function importExcel(e){
       if(wb.SheetNames.includes('Projects')){
         const rows=XLSX.utils.sheet_to_json(wb.Sheets['Projects'],{header:1}).slice(1);
         data.projects=rows.filter(r=>r[0]).map(r=>{
-          const monthStr=r[11]||'';
+          const monthStr=r[8]||'';
           const months=monthStr?monthStr.split('; ').filter(Boolean).map(m=>{
             const [label,prog]=m.split(':');
             return {label:label.trim(),progress:parseFloat(prog)||0};
           }):[];
-          const dutyStaff=r[5]?String(r[5]).split(',').filter(Boolean):[];
-          const lead=r[4]?String(r[4]).split(',').filter(Boolean):[];
-          return {id:r[0],projectId:r[1],name:r[2],section:r[3],lead,dutyStaff,mhGiven:+r[6]||0,mhActual:+r[7]||0,startDate:r[8],endDate:r[9],duration:+r[10]||0,months};        });
+          const lead=r[3]?String(r[3]).split(',').filter(Boolean):[];
+          const dutyStaff=r[4]?String(r[4]).split(',').filter(Boolean):[];
+          return {id:r[0],projectId:r[1],name:r[2],section:'',lead,dutyStaff,startDate:r[5],endDate:r[6],duration:+r[7]||0,months};
+        });
       }
       // Staff MH
       if(wb.SheetNames.includes('Staff_MH')){
