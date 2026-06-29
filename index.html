@@ -452,6 +452,7 @@ let data = {
 };
  
 const MAX_MH_PER_STAFF = 160;
+const DEFAULT_WEEK_PCT = [10, 20, 40, 25, 5]; // week 1-5 default % of month total
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];function uid(prefix){ return prefix + (Date.now() % 1e9) + Math.floor(Math.random()*1000); }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2500); }
 function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1549,9 +1550,97 @@ function renderChart(){
       scales:{
         x:{ticks:{color:'#888'},grid:{color:'rgba(255,255,255,.05)'}},
         y:{ticks:{color:'#888',callback:v=>v.toLocaleString()},grid:{color:'rgba(255,255,255,.05)'},suggestedMax:maxMH+200}
+      },
+      onClick:(evt,elements)=>{
+        if(!elements.length) return;
+        const el=elements[0];
+        const dsIndex=el.datasetIndex;
+        if(dsIndex>1) return; // ignore max line
+        const monthIndex=el.index;
+        const monthMHGiven=givenByMonth[monthIndex];
+        const monthMHActual=actualByMonth[monthIndex];
+        showWeeklyPopup(monthIndex, monthMHGiven, monthMHActual, year);
       }
     }
   });
+}
+
+function showWeeklyPopup(monthIndex, totalGiven, totalActual, year){
+  const monthName=MONTHS[monthIndex]+' '+year;
+  const weeks=['Week 1','Week 2','Week 3','Week 4','Week 5'];
+
+  // Remove existing popup if any
+  const existing=document.getElementById('weekly-popup');
+  if(existing) existing.remove();
+
+  const popup=document.createElement('div');
+  popup.id='weekly-popup';
+  popup.style.cssText=`
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:var(--surface); border:1px solid var(--accent);
+    border-radius:var(--radius); padding:24px; z-index:9999;
+    min-width:360px; max-width:480px; box-shadow:0 8px 32px rgba(0,0,0,.6);`;
+
+  let rows='';
+  DEFAULT_WEEK_PCT.forEach((pct,i)=>{
+    const wGiven=Math.round(totalGiven*pct/100);
+    const wActual=Math.round(totalActual*pct/100);
+    const util=wGiven>0?Math.round(wActual/wGiven*100):0;
+    rows+=`<tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:13px">${weeks[i]}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:13px;text-align:right;color:var(--accent)">${wGiven.toLocaleString()}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:13px;text-align:right;color:#5dade2">${wActual.toLocaleString()}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:13px;text-align:right">${util}%</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">
+        <div style="background:var(--surface2);border-radius:4px;height:6px;width:80px">
+          <div style="height:6px;border-radius:4px;background:var(--accent);width:${Math.min(util,100)}%"></div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  popup.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:700">${monthName}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Weekly Breakdown (default distribution)</div>
+      </div>
+      <button onclick="document.getElementById('weekly-popup').remove()"
+        style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;display:flex;gap:24px;font-size:13px">
+      <span>Month Total Given: <strong style="color:var(--accent)">${totalGiven.toLocaleString()}</strong></span>
+      <span>Actual: <strong style="color:#5dade2">${totalActual.toLocaleString()}</strong></span>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">
+          <th style="padding:6px 10px;text-align:left">Week</th>
+          <th style="padding:6px 10px;text-align:right">Given</th>
+          <th style="padding:6px 10px;text-align:right">Actual</th>
+          <th style="padding:6px 10px;text-align:right">Util</th>
+          <th style="padding:6px 10px"></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:14px;font-size:11px;color:var(--text-muted)">
+      Week distribution: ${DEFAULT_WEEK_PCT.map((p,i)=>`W${i+1} ${p}%`).join(' · ')}
+    </div>
+    <div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Click anywhere outside to close</div>`;
+
+  document.body.appendChild(popup);
+
+  // Close on outside click
+  setTimeout(()=>{
+    document.addEventListener('click', function handler(e){
+      const pop=document.getElementById('weekly-popup');
+      if(pop&&!pop.contains(e.target)){
+        pop.remove();
+        document.removeEventListener('click',handler);
+      }
+    });
+  },100);
 }
 
 function renderProgressChart(){
