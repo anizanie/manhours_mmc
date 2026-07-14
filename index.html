@@ -6,7 +6,9 @@
 <title>Mechanical Engineering Manhours System</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script><style>
+  
   :root {
     --bg: #0a0a0a;
     --surface: #141414;
@@ -128,6 +130,16 @@
     main { padding: 16px; }
 
   }
+  
+  @media print {
+    nav { display:none!important; }
+    #page-staff, #page-projects, #page-manhours, #page-reports, #page-chart { display:none!important; }
+    #page-dashboard { display:block!important; }
+    body { background:#fff!important; color:#000!important; }
+    .card, .stat-card { background:#fff!important; border:1px solid #ddd!important; }
+    .btn-row, button { display:none!important; }
+    .print-expand { max-height:none!important; overflow:visible!important; }
+  }
   .duty-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:13px; }
   .duty-item:hover { background:rgba(232,160,32,.08); }
   .duty-item input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
@@ -144,19 +156,110 @@
   .ss-option.no-match { color:var(--text-muted); cursor:default; }
   .ss-option.no-match:hover { background:none; color:var(--text-muted); }
 
+/* ORG CHART */
+  #org-export-area {
+    background: #ffffff;
+    padding: 32px 24px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: inline-block;
+    min-width: 100%;
+  }
+  .org-wrap { overflow-x: auto; overflow-y: auto; padding: 0; background: #fff; }
+
+  /* All boxes unified black & white */
+  .ob {
+    border: 2px solid #222;
+    border-radius: 3px;
+    padding: 6px 10px;
+    text-align: center;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
+    box-sizing: border-box;
+    background: #ffffff;
+    display: inline-block;
+    vertical-align: top;
+  }
+  .ob-title {
+    font-size: 9px;
+    font-weight: 800;
+    color: #222;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-bottom: 3px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #bbb;
+  }
+  .ob-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: #000;
+    line-height: 1.35;
+  }
+  .ob-sub { font-size: 9px; color: #555; margin-top: 2px; }
+
+  /* Section headers slightly shaded */
+  .ob.t-section { background: #f0f0f0; border-color: #222; }
+  .ob.t-section .ob-name { font-size: 12px; font-weight: 900; }
+
+  /* Connectors */
+  .oc-v { width: 2px; background: #555; margin: 0 auto; }
+  .oc-hline { height: 2px; background: #555; }
+  .oc-child-vline { width: 2px; background: #555; margin: 0 auto; }
+
+  /* Children row: flex row, each child has a top horizontal connector via pseudo */
+  .oc-children {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .oc-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 0 6px;
+  }
+  /* Horizontal bar across top of children */
+  .oc-children > .oc-child::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: #555;
+  }
+  .oc-children > .oc-child:first-child::before { left: 50%; }
+  .oc-children > .oc-child:last-child::before { right: 50%; }
+  .oc-children > .oc-child:only-child::before { display: none; }
+
+  .oc-staff-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .oc-staff-list .ob { width: 130px; }
+
+  @media print {
+    nav,#page-staff,#page-projects,#page-manhours,#page-reports,#page-chart,#page-dashboard,#page-orgchart .btn { display:none!important; }
+    #page-orgchart { display:block!important; }
+    #org-export-area { background:#fff!important; }
+  }
+
 </style>
 </head>
 <body>
  
 <nav>
-  <div class="nav-logo">⚙ ENG MANHOURS</div>
+  <div class="nav-logo">⚙ ME ENG MANHOURS</div>
   <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
   <button class="nav-btn" onclick="showPage('staff')">Staff</button>
   <button class="nav-btn" onclick="showPage('projects')">Projects</button>
   <button class="nav-btn" onclick="showPage('manhours')">Manhours</button>
   <button class="nav-btn" onclick="showPage('reports')">Reports</button>
   <button class="nav-btn" onclick="showPage('chart')">Chart</button>
-  <button class="nav-btn" onclick="exportExcel()" style="margin-left:auto; color:var(--accent);">⬇ Export Excel</button>
+  <button class="nav-btn" onclick="showPage('orgchart')">Org Chart</button>  <button class="nav-btn" onclick="exportExcel()" style="margin-left:auto; color:var(--accent);">⬇ Export Excel</button>
   <label class="btn btn-secondary btn-sm" style="margin-left:4px; cursor:pointer; white-space:nowrap;">
     ⬆ Import Excel <input type="file" accept=".xlsx" style="display:none" onchange="importExcel(event)">
   </label>
@@ -168,15 +271,26 @@
 <div class="page active" id="page-dashboard">
   <h2>Dashboard</h2>
   <div class="stat-row" id="dash-stats"></div>
-  <div class="grid2">
-    <div class="card">
-      <h3>Projects Overview</h3>
-      <div id="dash-projects"></div>
+  <div class="card">
+    <div class="form-row cols2" style="margin-bottom:0">
+      <div class="form-group">
+        <label>Month</label>
+        <select id="dash-month" onchange="renderDashboard()"></select>
+      </div>
+      <div class="form-group">
+        <label>Year</label>
+        <select id="dash-year" onchange="renderDashboard()"></select>
+      </div>
     </div>
-    <div class="card">
-      <h3>Staff Utilisation</h3>
-      <div id="dash-staff"></div>
-    </div>
+  </div>
+  <div id="dash-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+    <div id="dash-mh-column"></div>
+    <div id="dash-status-column"></div>
+  </div>
+  
+  <div id="dash-forecast-section" style="margin-bottom:16px"></div>
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-secondary" onclick="exportDashboardPDF()">⬇ Export PDF</button>
   </div>
 </div>
  
@@ -187,7 +301,7 @@
     <div id="staff-form-area">
       <h3 id="staff-form-title">Add Staff</h3>
       <input type="hidden" id="staff-edit-id">
-      <div class="form-row cols3">
+      <div class="form-row cols4">
         <div class="form-group"><label>Staff Name</label><input id="staff-name" placeholder="Full name"></div>
        <div class="form-group"><label>Category</label>
           <select id="staff-category" onchange="onStaffCategoryChange()">
@@ -210,8 +324,11 @@
           <select id="staff-status">
             <option value="">Select status</option>
             <option>Permanent</option>
-            <option>Agency</option>
+            <option>PO Staff</option>
           </select>
+        </div>
+        <div class="form-group"><label>Years of Experience</label>
+          <input id="staff-exp" type="number" min="0" max="50" placeholder="e.g. 5">
         </div>
       </div>
       <div class="btn-row">
@@ -227,7 +344,8 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>Projects</th><th>Total MH Given</th><th>Total MH Actual</th><th>Actions</th></tr></thead>        <tbody id="staff-table"></tbody>
+        <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Section</th><th>Level</th><th>Status</th><th>Exp (Yrs)</th><th>Projects</th><th>Total MH Project</th><th>Total MH Required</th><th>Actions</th></tr></thead>
+          <tbody id="staff-table"></tbody>
       </table>
     </div>
   </div>
@@ -313,8 +431,8 @@
       </div>
       <div id="mh-staff-details" style="display:none">
         <div class="form-row cols2">
-          <div class="form-group"><label>MH Given</label><input id="mh-staff-given" type="number" placeholder="0"></div>
-          <div class="form-group"><label>MH Actual</label><input id="mh-staff-actual" type="number" placeholder="0"></div>
+          <div class="form-group"><label>MH Project</label><input id="mh-staff-given" type="number" placeholder="0"></div>
+          <div class="form-group"><label>MH Required</label><input id="mh-staff-actual" type="number" placeholder="0"></div>
         </div>
         <div class="btn-row"><button class="btn btn-primary" onclick="saveMhStaff()">Save Manhours</button></div>
       </div>
@@ -323,7 +441,7 @@
       <h3 id="mh-staff-summary-title">Staff Manhours Summary</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Project</th><th>Project ID</th><th>Section</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead>
+          <thead><tr><th>Project</th><th>Project ID</th><th>MH Project</th><th>MH Required</th></tr></thead>
           <tbody id="mh-staff-table"></tbody>
         </table>
       </div>
@@ -413,8 +531,8 @@
     <div class="card" style="margin-top:16px;">
       <h3>Legend</h3>
       <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:13px;">
-        <span><span style="display:inline-block;width:12px;height:12px;background:#e8a020;border-radius:2px;margin-right:6px;"></span>MH Given</span>
-        <span><span style="display:inline-block;width:12px;height:12px;background:#5dade2;border-radius:2px;margin-right:6px;"></span>MH Actual</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#e8a020;border-radius:2px;margin-right:6px;"></span>MH Project</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#5dade2;border-radius:2px;margin-right:6px;"></span>MH Required</span>
         <span><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,.5);border-radius:2px;margin-right:6px;"></span>Max MH</span>
       </div>
     </div>
@@ -428,6 +546,95 @@
       </div>
     </div>
     <div id="progress-chart-list"></div>
+  </div>
+</div>
+
+<!-- ORG CHART PAGE -->
+<div class="page" id="page-orgchart">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+    <h2 style="margin:0">Organisation Chart</h2>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="exportOrgPDF()">⬇ Export PDF (A3)</button>
+      <button class="btn btn-primary" onclick="showOrgConfigModal()">⚙ Configure</button>
+    </div>
+  </div>
+  <div id="org-chart-wrap"></div>
+</div>
+
+<!-- ORG CONFIG MODAL -->
+<div class="modal-overlay" id="org-config-modal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div class="modal-title">Configure Organisation Chart</div>
+      <button class="modal-close" onclick="closeOrgModal()">×</button>
+    </div>
+
+    <div class="tabs" id="org-config-tabs">
+      <button class="tab active" onclick="switchOrgTab('top')">Top Level</button>
+      <button class="tab" onclick="switchOrgTab('drafting')">Drafting</button>
+      <button class="tab" onclick="switchOrgTab('taskforce')">Task Force</button>
+    </div>
+
+    <!-- TOP LEVEL TAB -->
+    <div class="tab-content active" id="org-tab-top">
+      <div class="form-row cols2" style="margin-top:14px">
+        <div class="form-group">
+          <label>HOD / Lead Engineer</label>
+          <div class="search-select-wrap" id="org-hod-wrap"></div>
+        </div>
+        <div class="form-group">
+          <label>Advisor</label>
+          <div class="search-select-wrap" id="org-advisor-wrap"></div>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group">
+          <label>Deputy HOD / Lead / Senior Engineer</label>
+          <div class="search-select-wrap" id="org-deputy-wrap"></div>
+        </div>
+        <div class="form-group">
+          <label>Department Secretary (manual)</label>
+          <input id="org-secretary-input" placeholder="Enter name">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveOrgTop()">Save Top Level</button>
+      </div>
+    </div>
+
+    <!-- DRAFTING TAB -->
+    <div class="tab-content" id="org-tab-drafting">
+      <div class="form-group" style="margin-top:14px">
+        <label>Drafting Coordinator</label>
+        <div class="search-select-wrap" id="org-draftcoord-wrap"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveOrgDrafting()">Save Drafting Config</button>
+      </div>
+    </div>
+
+    <!-- TASK FORCE TAB -->
+    <div class="tab-content" id="org-tab-taskforce">
+      <div style="margin-top:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <h3 style="margin:0">Task Force Members</h3>
+        </div>
+        <div class="form-row cols2">
+          <div class="form-group">
+            <label>Name</label>
+            <input id="tf-name-input" placeholder="Full name">
+          </div>
+          <div class="form-group">
+            <label>Title / Role</label>
+            <input id="tf-role-input" placeholder="e.g. Specialist">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:0">
+          <button class="btn btn-primary" onclick="addTaskForce()">Add Member</button>
+        </div>
+        <div id="tf-list" style="margin-top:12px"></div>
+      </div>
+    </div>
   </div>
 </div>
  
@@ -461,8 +668,11 @@ function buildSearchSelect(wrapperId, options, onSelect, placeholder){
   const sorted=[...options].sort((a,b)=>{
     if(a.value==='all') return -1;
     if(b.value==='all') return 1;
+    if(a.value==='__dd_section__') return -1;
+    if(b.value==='__dd_section__') return 1;
     return a.label.localeCompare(b.label);
   });
+  
   wrap.innerHTML=`
     <input class="ss-search" placeholder="${placeholder||'Search...'}" autocomplete="off" style="width:100%">
     <div class="ss-dropdown"></div>
@@ -528,6 +738,7 @@ function showPage(id){
   if(id==='manhours') { refreshMhDropdowns(); }
   if(id==='reports') { refreshReportDropdowns(); renderUtilisation(); renderStaffInvolvement(); }
   if(id==='chart') renderChart();
+  if(id==='orgchart') renderOrgChart();
 }
  
 // ===================== STAFF =====================
@@ -556,13 +767,14 @@ function saveStaff(){
   const section=document.getElementById('staff-section').value;
   const role=document.getElementById('staff-role').value;
   const status=document.getElementById('staff-status').value;
+  const exp=+document.getElementById('staff-exp').value||0;
   if(!name||!category||!section||!role||!status){ toast('Please fill all staff fields'); return; }
   const editId=document.getElementById('staff-edit-id').value;
   if(editId){
     const s=data.staff.find(x=>x.id===editId);
-    if(s){ s.name=name; s.category=category; s.section=section; s.role=role; s.status=status; }
+    if(s){ s.name=name; s.category=category; s.section=section; s.role=role; s.status=status; s.exp=exp; }
   } else {
-    data.staff.push({id:uid('S'),name,category,section,role,status});
+    data.staff.push({id:uid('S'),name,category,section,role,status,exp});
   }
   cancelStaffEdit(); renderStaffTable(); toast('Staff saved');
 }
@@ -575,6 +787,7 @@ function editStaff(id){
   document.getElementById('staff-section').value=s.section;
   document.getElementById('staff-role').value=s.role;
   document.getElementById('staff-status').value=s.status||'';
+  document.getElementById('staff-exp').value=s.exp||0;
   document.getElementById('staff-form-title').textContent='Edit Staff';
 }
 function deleteStaff(id){
@@ -590,6 +803,7 @@ function cancelStaffEdit(){
   document.getElementById('staff-section').innerHTML='<option value="">Select section</option>';
   document.getElementById('staff-role').innerHTML='<option value="">Select level</option>';
   document.getElementById('staff-status').value='';
+  document.getElementById('staff-exp').value='';
   document.getElementById('staff-form-title').textContent='Add Staff';
 }
 function staffTotalMH(staffId, field){
@@ -612,6 +826,7 @@ function renderStaffTable(){
       <td><span class="badge badge-blue">${esc(s.section)}</span></td>
       <td><span class="badge badge-green">${esc(s.role)}</span></td>
       <td><span class="badge ${s.status==='Permanent'?'badge-green':'badge-blue'}">${esc(s.status||'-')}</span></td>
+      <td>${s.exp||0}</td>
       <td>${staffProjectCount(s.id)}</td>
       <td>${staffTotalMH(s.id,'mhGiven').toLocaleString()}</td>
       <td>${staffTotalMH(s.id,'mhActual').toLocaleString()}</td>
@@ -765,8 +980,7 @@ function renderDutyStaffList(){
   const search=(document.getElementById('staff-duty-search')?.value||'').toLowerCase();
   const list=document.getElementById('staff-duty-list');
   if(!list) return;
-  const filtered=sortStaffEngFirst(data.staff.filter(s=>!search||s.name.toLowerCase().includes(search)));
-  list.innerHTML=filtered.length
+  const filtered=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'&&(!search||s.name.toLowerCase().includes(search))));  list.innerHTML=filtered.length
     ? filtered.map(s=>`
         <label class="duty-item">
           <input type="checkbox" value="${s.id}" ${dutyStaffIds.includes(s.id)?'checked':''}
@@ -808,8 +1022,7 @@ function renderLeadStaffList(){
   const search=(document.getElementById('lead-search')?.value||'').toLowerCase();
   const list=document.getElementById('lead-staff-list');
   if(!list) return;
-  const filtered=sortStaffEngFirst(data.staff.filter(s=>!search||s.name.toLowerCase().includes(search)));
-  list.innerHTML=filtered.length
+  const filtered=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'&&(!search||s.name.toLowerCase().includes(search))));  list.innerHTML=filtered.length
     ? filtered.map(s=>`
         <label class="duty-item">
           <input type="checkbox" value="${s.id}" ${leadStaffIds.includes(s.id)?'checked':''}
@@ -884,8 +1097,11 @@ function switchMhTab(tab){
   document.getElementById('mh-tab-project').classList.toggle('active',tab==='project');
 }
 function refreshMhDropdowns(){
+  // Engineers only for individual staff MH + a "Designers & Drafters" group entry
+  const engineers=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'));
+  const ddOption={value:'__dd_section__', label:'Designers & Drafters (Section)'};
   buildSearchSelect('mh-staff-wrap',
-    sortStaffEngFirst(data.staff).map(s=>({value:s.id,label:`${s.name} (${s.role} / ${s.section})`})),
+    [ddOption, ...engineers.map(s=>({value:s.id,label:`${s.name} (${s.role} / ${s.section})`}))],
     (id)=>{ onMhStaffChange(id); },
     'Search staff...'
   );
@@ -894,9 +1110,13 @@ function refreshMhDropdowns(){
 
 function onMhStaffChange(staffId){
   if(staffId===undefined) staffId=ssGetValue('mh-staff-wrap');
-  const assignedProjs=staffId
-    ? data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.includes(staffId))
-    : [];
+  let assignedProjs=[];
+  if(staffId==='__dd_section__'){
+    // Show all projects
+    assignedProjs=data.projects;
+  } else if(staffId){
+    assignedProjs=data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.includes(staffId));
+  }
   buildSearchSelect('mh-proj-wrap',
     assignedProjs.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`})),
     (id)=>{ onMhProjChange(id); },
@@ -931,23 +1151,38 @@ function saveMhStaff(){
 }
 function showStaffMhSummary(staffId){
   const sc=document.getElementById('mh-staff-summary-card');
+  const tbody=document.getElementById('mh-staff-table');
+  if(staffId==='__dd_section__'){
+    sc.style.display='block';
+    document.getElementById('mh-staff-summary-title').textContent='Designers & Drafters — Section Manhours';
+    const records=data.staffMH.filter(m=>m.staffId==='__dd_section__');
+    if(!records.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">No manhour records.</td></tr>'; return; }
+    tbody.innerHTML=records.map(m=>{
+      const p=data.projects.find(x=>x.id===m.projectId);
+      return `<tr>
+        <td>${p?esc(p.name):'-'}</td>
+        <td>${p?esc(p.projectId):'-'}</td>
+        <td>${(+m.mhGiven||0).toLocaleString()}</td>
+        <td>${(+m.mhActual||0).toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    return;
+  }
   const st=data.staff.find(s=>s.id===staffId);
   if(!st){ sc.style.display='none'; return; }
   sc.style.display='block';
   document.getElementById('mh-staff-summary-title').textContent=st.name+' – Project Manhours';
   const records=data.staffMH.filter(m=>m.staffId===staffId);
-  const tbody=document.getElementById('mh-staff-table');
-  if(!records.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">No manhour records.</td></tr>'; return; }
+  if(!records.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">No manhour records.</td></tr>'; return; }
   tbody.innerHTML=records.map(m=>{
     const p=data.projects.find(x=>x.id===m.projectId);
     const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100)+'%':'-';
     return `<tr>
       <td>${p?esc(p.name):'-'}</td>
       <td>${p?esc(p.projectId):'-'}</td>
-      <td>${p?esc(p.section):'-'}</td>
       <td>${m.mhGiven.toLocaleString()}</td>
       <td>${m.mhActual.toLocaleString()}</td>
-      <td>${util}</td>
+  
     </tr>`;
   }).join('');
 }
@@ -1018,7 +1253,8 @@ function switchRepTab(tab){
 
 function refreshReportDropdowns(){
   buildSearchSelect('rep-staff-wrap',
-    [{value:'all',label:''},...data.staff.map(s=>({value:s.id,label:s.name}))],    ()=>renderStaffInvolvement(), 'Search staff...');
+    [{value:'all',label:''},...sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer')).map(s=>({value:s.id,label:s.name}))],
+    ()=>renderStaffInvolvement(), 'Search staff...');
 
   buildSearchSelect('rep-proj-filter-wrap',
     [{value:'all',label:''},...data.projects.map(p=>({value:p.id,label:`${p.projectId} – ${p.name}`}))],
@@ -1041,10 +1277,8 @@ function renderUtilisation(){
   // Build section dropdown
   const uf=document.getElementById('util-filter');
   const curSec=uf.value;
-  const sections=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
-  uf.innerHTML='<option value="all">All Sections</option>'
+  const sections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();  uf.innerHTML='<option value="all">All Sections</option>'
     +'<option value="__engineers__">All Engineers</option>'
-    +'<option value="__dd__">All Designers & Drafters</option>'
     +sections.map(s=>`<option value="${s}">${esc(s)}</option>`).join('');
   uf.value=curSec;
   const sectionFilter=uf.value;
@@ -1052,10 +1286,8 @@ function renderUtilisation(){
   // Build staff dropdown
   const usf=document.getElementById('util-staff-filter');
   const curStaff=usf.value;
-  let staffForFilter=data.staff;
-  if(sectionFilter==='__engineers__') staffForFilter=staffForFilter.filter(s=>s.category==='engineer');
-  else if(sectionFilter==='__dd__') staffForFilter=staffForFilter.filter(s=>s.category==='designer_drafter');
-  else if(sectionFilter!=='all') staffForFilter=staffForFilter.filter(s=>s.section===sectionFilter);
+  let staffForFilter=data.staff.filter(s=>s.category==='engineer');
+  if(sectionFilter!=='all'&&sectionFilter!=='__engineers__') staffForFilter=staffForFilter.filter(s=>s.section===sectionFilter);
   usf.innerHTML='<option value="all">All Staff</option>'+staffForFilter.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
   usf.value=curStaff;
   const staffFilter=usf.value;
@@ -1064,10 +1296,9 @@ function renderUtilisation(){
   if(!data.staff.length||!data.projects.length){ container.innerHTML='<div class="empty">No data.</div>'; return; }
 
   // Filter staff
-  let staffList=data.staff;
-  if(sectionFilter==='__engineers__') staffList=staffList.filter(s=>s.category==='engineer');
-  else if(sectionFilter==='__dd__') staffList=staffList.filter(s=>s.category==='designer_drafter');
-  else if(sectionFilter!=='all') staffList=staffList.filter(s=>s.section===sectionFilter);
+  let staffList=data.staff.filter(s=>s.category==='engineer');
+  if(sectionFilter==='__engineers__'||sectionFilter==='all') { /* keep all engineers */ }
+  else if(sectionFilter!=='__dd__'&&sectionFilter!=='all') staffList=staffList.filter(s=>s.section===sectionFilter);
   if(staffFilter!=='all') staffList=staffList.filter(s=>s.id===staffFilter);
 
   if(!staffList.length){ container.innerHTML='<div class="empty">No staff match filter.</div>'; return; }
@@ -1081,7 +1312,7 @@ function renderUtilisation(){
       <tr>
         <th>Staff</th><th>Section</th><th>Level</th><th>Project</th>
         ${MONTHS.map(m=>`<th>${m}</th>`).join('')}
-        <th>Total Given</th><th>Total Actual</th>
+        <th>Total Project</th><th>Total Required</th>
       </tr>
     </thead><tbody>`;
 
@@ -1160,8 +1391,8 @@ function renderUtilisation(){
 
   html+=`</tbody></table></div>`;
   html+=`<div style="margin-top:8px;font-size:11px;color:var(--text-muted);display:flex;gap:16px">
-    <span><span style="color:var(--accent)">■</span> MH Given</span>
-    <span><span style="color:#5dade2">■</span> MH Actual</span>
+    <span><span style="color:var(--accent)">■</span> MH Project</span>
+    <span><span style="color:#5dade2">■</span> MH Required</span>
   </div>`;
 
   container.innerHTML=html;
@@ -1183,7 +1414,7 @@ function renderStaffInvolvement(){
 
   if(mode==='matrix'){
     // Show full matrix: rows=staff, cols=projects, dot if involved
-    let staffList=sortStaffEngFirst(data.staff);
+    let staffList=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'));
     let projList=data.projects;
     if(!staffList.length||!projList.length){ container.innerHTML='<div class="empty">Add staff and projects first.</div>'; return; }
     const DOT_COLORS={engineer:'#e8a020','designer_drafter':'#5dade2'};
@@ -1207,8 +1438,8 @@ function renderStaffInvolvement(){
       involvement.forEach((m,i)=>{
         if(m){
           const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
-          html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border)" title="MH Given:${m.mhGiven} | Actual:${m.mhActual} | Util:${util}%">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${dotColor};color:#000;font-size:10px;font-weight:700;cursor:default">${util}%</span>
+          html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border)" title="${s?esc(s.name):''} on ${projList[i]?esc(projList[i].name):''}">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid ${dotColor};background:transparent;cursor:default"></span>
           </td>`;
         } else {
           html+=`<td style="padding:8px;text-align:center;border:1px solid var(--border)"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--border)"></span></td>`;
@@ -1234,8 +1465,7 @@ function renderStaffInvolvement(){
   }
 
   if(mode==='by-staff'){
-    const staffList=staffFilter==='all'?data.staff:data.staff.filter(s=>s.id===staffFilter);
-    if(!staffList.length){ container.innerHTML='<div class="empty">No staff.</div>'; return; }
+    const staffList=staffFilter==='all'?sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer')):data.staff.filter(s=>s.id===staffFilter&&s.category==='engineer');    if(!staffList.length){ container.innerHTML='<div class="empty">No staff.</div>'; return; }
     let html='';
     staffList.forEach(s=>{
       const records=data.staffMH.filter(m=>m.staffId===s.id);
@@ -1251,20 +1481,18 @@ function renderStaffInvolvement(){
           </div>
           <div style="display:flex;gap:16px;font-size:13px">
             <span class="text-muted">Projects: <strong class="text-accent">${records.length}</strong></span>
-            <span class="text-muted">MH Given: <strong>${totalGiven.toLocaleString()}</strong></span>
-            <span class="text-muted">MH Actual: <strong>${totalActual.toLocaleString()}</strong></span>
+            <span class="text-muted">MH Project: <strong>${totalGiven.toLocaleString()}</strong></span>
+            <span class="text-muted">MH Required: <strong>${totalActual.toLocaleString()}</strong></span>
           </div>
         </div>`;
       if(records.length){
         html+=`<div class="table-wrap"><table>
-          <thead><tr><th>Project</th><th>Project ID</th><th>Section</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+          <thead><tr><th>Project</th><th>Project ID</th><th>Section</th><th>MH Project</th><th>MH Required</th></tr></thead><tbody>`;
         records.forEach(m=>{
           const p=data.projects.find(x=>x.id===m.projectId);
-          const util=m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
           html+=`<tr>
             <td>${p?esc(p.name):'-'}</td><td>${p?esc(p.projectId):'-'}</td><td>${p?esc(p.section):'-'}</td>
             <td>${(+m.mhGiven||0).toLocaleString()}</td><td>${(+m.mhActual||0).toLocaleString()}</td>
-            <td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div></td>
           </tr>`;
         });
         html+=`</tbody></table></div>`;
@@ -1300,8 +1528,8 @@ function renderProjectStaff(){
           <span class="text-muted">Lead: <strong>${lead?esc(lead.name):'-'}</strong></span>
           <span class="text-muted">Staff: <strong class="text-accent">${p.dutyStaff?p.dutyStaff.length:records.length}</strong></span>          
           <span class="text-muted">${esc(p.startDate)} – ${esc(p.endDate)}</span>
-          <span class="text-muted">MH Given: <strong>${totalGiven.toLocaleString()}</strong></span>
-          <span class="text-muted">MH Actual: <strong>${totalActual.toLocaleString()}</strong></span>
+          <span class="text-muted">MH Project: <strong>${totalGiven.toLocaleString()}</strong></span>
+          <span class="text-muted">MH Required: <strong>${totalActual.toLocaleString()}</strong></span>
         </div>
       </div>`;
     if(p.months&&p.months.length){
@@ -1312,7 +1540,7 @@ function renderProjectStaff(){
     const dutyList=p.dutyStaff&&p.dutyStaff.length?p.dutyStaff:records.map(m=>m.staffId);
     if(dutyList.length){
       html+=`<div class="table-wrap"><table>
-        <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>Status</th><th>MH Given</th><th>MH Actual</th><th>Utilisation</th></tr></thead><tbody>`;
+        <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>Status</th><th>MH Project</th><th>MH Required</th></tr></thead><tbody>`;
       [...dutyList].sort((a,b)=>{
         const sa=data.staff.find(x=>x.id===a);
         const sb=data.staff.find(x=>x.id===b);
@@ -1320,10 +1548,10 @@ function renderProjectStaff(){
         const catB=sb?.category==='engineer'?0:1;
         if(catA!==catB) return catA-catB;
         return (sa?.name||'').localeCompare(sb?.name||'');
+      
       }).forEach(staffId=>{
         const s=data.staff.find(x=>x.id===staffId);
         const m=records.find(x=>x.staffId===staffId);
-        const util=m&&m.mhGiven>0?Math.round(m.mhActual/m.mhGiven*100):0;
         html+=`<tr>
           <td>${s?esc(s.name):esc(staffId)}</td>
           <td>${s?esc(s.section):'-'}</td>
@@ -1331,9 +1559,18 @@ function renderProjectStaff(){
           <td>${s?esc(s.status||'-'):'-'}</td>
           <td>${m?(+m.mhGiven||0).toLocaleString():'-'}</td>
           <td>${m?(+m.mhActual||0).toLocaleString():'-'}</td>
-          <td>${m?`<div style="display:flex;align-items:center;gap:6px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar" style="width:${Math.min(util,100)}%"></div></div><span style="font-size:12px">${util}%</span></div>`:'-'}</td>
         </tr>`;
       });
+      // Add DD section row if exists
+      const ddRec=records.find(x=>x.staffId==='__dd_section__');
+      if(ddRec){
+        html+=`<tr style="background:rgba(175,122,197,.08)">
+          <td><strong>Designers & Drafters</strong></td>
+          <td>All DD</td><td>Section</td><td>-</td>
+          <td>${(+ddRec.mhGiven||0).toLocaleString()}</td>
+          <td>${(+ddRec.mhActual||0).toLocaleString()}</td>
+        </tr>`;
+      }
       html+=`</tbody></table></div>`;
     } else {
       html+=`<div class="empty" style="padding:16px">No staff assigned.</div>`;
@@ -1344,42 +1581,625 @@ function renderProjectStaff(){
 }
  
 // ===================== DASHBOARD =====================
+let dashChartInsts=[];
+let otRatePerHour=0; // user-entered overtime rate per MH, used by the Capacity & Workload overtime estimator
 function renderDashboard(){
-  const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0);  const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
-  const util=totalMHGiven>0?Math.round(totalMHActual/totalMHGiven*100):0;
+  const now=new Date();
+  const curYear=now.getFullYear();
+  const curMonth=now.getMonth();
+
+  // Build month/year selectors
+  const dm=document.getElementById('dash-month');
+  const dy=document.getElementById('dash-year');
+  if(dm&&!dm.children.length){
+    const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    mNames.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; dm.appendChild(o); });
+    dm.value=curMonth;
+  }
+  if(dy&&!dy.children.length){
+    const years=buildYearList();
+    years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; dy.appendChild(o); });
+    dy.value=curYear;
+  }
+  const selMonth=+(dm?.value??curMonth);
+  const selYear=+(dy?.value??curYear);
+  const secFilter=document.getElementById('dash-status-section-filter')?.value||'all';
+  const monthLabel=MONTHS[selMonth]+' '+selYear;
+
+  // Destroy old charts
+  dashChartInsts.forEach(c=>{ try{ c.destroy(); }catch(e){} });
+  dashChartInsts=[];
+
+  // Stat cards
+  const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0);
+  const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
   document.getElementById('dash-stats').innerHTML=`
     <div class="stat-card"><div class="stat-val">${data.staff.length}</div><div class="stat-label">Total Staff</div></div>
     <div class="stat-card"><div class="stat-val">${data.projects.length}</div><div class="stat-label">Total Projects</div></div>
-    <div class="stat-card"><div class="stat-val">${totalMHGiven.toLocaleString()}</div><div class="stat-label">Total MH Given</div></div>
-    <div class="stat-card"><div class="stat-val">${totalMHActual.toLocaleString()}</div><div class="stat-label">Total MH Actual</div></div>
-    <div class="stat-card"><div class="stat-val">${util}%</div><div class="stat-label">Overall Utilisation</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHGiven.toLocaleString()}</div><div class="stat-label">Total MH Project</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHActual.toLocaleString()}</div><div class="stat-label">Total MH Required</div></div>
   `;
-  // Projects
-  const dp=document.getElementById('dash-projects');
-  if(!data.projects.length){ dp.innerHTML='<div class="empty">No projects yet.</div>'; }
-  else {
-    dp.innerHTML='<div class="table-wrap"><table><thead><tr><th>Project</th><th>MH Given</th><th>Actual</th></tr></thead><tbody>'+
-      data.projects.slice(0,8).map(p=>{
-        const actual=projTotalMHActual(p);
-        const projGiven=data.staffMH.filter(m=>m.projectId===p.id).reduce((a,m)=>a+(+m.mhGiven||0),0);
-        return `<tr><td>${esc(p.name)}</td><td>${projGiven.toLocaleString()}</td><td>${actual.toLocaleString()}</td></tr>`;      }).join('')+'</tbody></table></div>';
+
+  // ── PIE CHARTS: MH per section for selected month ──────────────────────
+  const engSections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
+  const groups=[
+    {key:'all',label:'All Staff'},
+    {key:'__engineers__',label:'All Engineers'},
+    {key:'__dd__',label:'Designers & Drafters'},
+    ...engSections.map(s=>({key:s,label:s}))
+  ];
+  const mhColumn=document.getElementById('dash-mh-column');
+  mhColumn.innerHTML='<div class="card" style="margin-bottom:16px"><h3 style="margin-bottom:12px">Manhours by Section</h3><div id="dash-mh-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div></div>';
+  const mhGrid=document.getElementById('dash-mh-grid');
+
+  function getMHForGroupMonth(groupKey, monthIdx, year){
+    let staffIds=data.staff;
+    if(groupKey==='__engineers__') staffIds=staffIds.filter(s=>s.category==='engineer');
+    else if(groupKey==='__dd__') staffIds=staffIds.filter(s=>s.category==='designer_drafter');
+    else if(groupKey!=='all') staffIds=staffIds.filter(s=>s.category==='engineer'&&s.section===groupKey);
+    const ids=staffIds.map(s=>s.id);
+    const includeDD=(groupKey==='__dd__'||groupKey==='all');
+    const capacity=ids.length*MAX_MH_PER_STAFF;
+    let given=0, actual=0;
+    data.projects.forEach(p=>{
+      if(!p.months||!p.months.length) return;
+      const totalProgress=p.months.reduce((a,m)=>a+(+m.progress||0),0)||100;
+      const pm=p.months.find(m=>{
+        const parts=m.label.split(' ');
+        return MONTHS.indexOf(parts[0])===monthIdx&&parseInt(parts[1])===year;
+      });
+      if(!pm) return;
+      const pct=(+pm.progress||0)/totalProgress;
+      data.staffMH.filter(m=>m.projectId===p.id&&(ids.includes(m.staffId)||(includeDD&&m.staffId==='__dd_section__')))
+        .forEach(m=>{ given+=Math.round((+m.mhGiven||0)*pct); actual+=Math.round((+m.mhActual||0)*pct); });
+      });
+    return {given, actual};
   }
-  // Staff
-  const ds=document.getElementById('dash-staff');
-  if(!data.staff.length){ ds.innerHTML='<div class="empty">No staff yet.</div>'; }
-  else {
-    ds.innerHTML='<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Projects</th><th>MH Actual</th></tr></thead><tbody>'+
-      data.staff.slice(0,8).map(s=>`<tr><td>${esc(s.name)}</td><td><span class="badge badge-green">${esc(s.role)}</span></td><td>${staffProjectCount(s.id)}</td><td>${staffTotalMH(s.id,'mhActual').toLocaleString()}</td></tr>`).join('')+
-      '</tbody></table></div>';
+  function makePieChart(containerId, label, given, actual){
+    const wrap=document.createElement('div');
+    wrap.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;max-width:200px';
+    const title=document.createElement('div');
+    title.style.cssText='font-size:11px;font-weight:600;color:var(--text);margin-bottom:8px;text-align:center;line-height:1.3';
+    title.textContent=label;
+    const canvasBox=document.createElement('div');
+    canvasBox.style.cssText='max-width:120px;margin:0 auto';
+    const canvas=document.createElement('canvas');
+    canvas.id=containerId;
+    canvas.height=110;
+    canvas.width=110;
+    canvasBox.appendChild(canvas);
+    wrap.appendChild(title);
+    wrap.appendChild(canvasBox);
+    const total=given+actual;
+    const givenPct=total>0?Math.round(given/total*100):0;
+    const actualPct=total>0?Math.round(actual/total*100):0;
+    const sub=document.createElement('div');
+    sub.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--text-muted);margin-top:6px';
+    sub.innerHTML=`<span><span style="color:var(--accent)">■</span> Project: ${given} (${givenPct}%)</span><span><span style="color:#5dade2">■</span> Req: ${actual} (${actualPct}%)</span>`;
+    wrap.appendChild(sub);
+    return {wrap, canvas, given, actual};
+  }
+
+  const allGroups=[
+    {key:'all',label:'All Staff'},
+    {key:'__engineers__',label:'All Engineers'},
+    {key:'__dd__',label:'Designers & Drafters'},
+    ...engSections.map(s=>({key:s,label:s}))
+  ];
+
+  allGroups.forEach((g,gi)=>{
+    const {given,actual}=getMHForGroupMonth(g.key,selMonth,selYear);
+    const cid='dash-pie-'+gi;
+    const {wrap,canvas}=makePieChart(cid,g.label+' — '+monthLabel,given,actual);
+    mhGrid.appendChild(wrap);
+    setTimeout(()=>{
+      if(!canvas.getContext) return;
+      const total=given+actual;
+      const inst=new Chart(canvas.getContext('2d'),{
+        type:'pie',
+        data:{
+          labels:['MH Project','MH Required'],
+          datasets:[{data:[given,actual],backgroundColor:['rgba(232,160,32,.85)','rgba(93,173,226,.85)'],borderColor:['#e8a020','#5dade2'],borderWidth:2}]
+        },
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw.toLocaleString()} (${total>0?Math.round(c.raw/total*100):0}%)`}}
+          }
+        }
+      });
+      dashChartInsts.push(inst);
+    },0);
+  });
+
+  // ── STAFF STATUS & EXPERIENCE (right column, with its own section dropdown) ──
+  let staffForStatus=data.staff;
+  if(secFilter==='__engineers__') staffForStatus=staffForStatus.filter(s=>s.category==='engineer');
+  else if(secFilter==='__dd__') staffForStatus=staffForStatus.filter(s=>s.category==='designer_drafter');
+  else if(secFilter!=='all') staffForStatus=staffForStatus.filter(s=>s.section===secFilter);
+  const permanent=staffForStatus.filter(s=>s.status==='Permanent').length;
+  const poStaff=staffForStatus.filter(s=>s.status==='PO Staff'||s.status==='Agency').length;
+
+  const expRanges=[{label:'0–4 yrs',min:0,max:4},{label:'5–10 yrs',min:5,max:10},{label:'11–20 yrs',min:11,max:20},{label:'21–30 yrs',min:21,max:30},{label:'31–40 yrs',min:31,max:40}];
+  const expColors=['#e8a020','#5dade2','#58d68d','#af7ac5','#ec7063'];
+  const expCounts=expRanges.map(r=>staffForStatus.filter(s=>(+s.exp||0)>=r.min&&(+s.exp||0)<=r.max).length);
+
+  const sectionsForDropdown=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
+  const statusColumn=document.getElementById('dash-status-column');
+  statusColumn.innerHTML=`<div class="card" style="margin-bottom:16px">
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Filter Section</label>
+        <select id="dash-status-section-filter" onchange="renderDashboard()">
+          <option value="all">All Staff</option>
+          <option value="__engineers__">All Engineers</option>
+          <option value="__dd__">All Designers & Drafters</option>
+          ${sectionsForDropdown.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:14px">
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;text-align:center">Staff Status</div>
+          <div style="max-width:220px;margin:0 auto"><canvas id="dash-status-pie" height="220" width="220"></canvas></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--text-muted);margin-top:8px">
+            <span><span style="color:#58d68d">■</span> Permanent: ${permanent}</span>
+            <span><span style="color:#af7ac5">■</span> PO Staff: ${poStaff}</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;text-align:center">Experience</div>
+          <div style="max-width:220px;margin:0 auto"><canvas id="dash-exp-pie" height="220" width="220"></canvas></div>
+          <div style="display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--text-muted);margin-top:8px">
+            ${expRanges.map((r,i)=>`<span><span style="color:${expColors[i]}">■</span> ${r.label}: ${expCounts[i]}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('dash-status-section-filter').value=secFilter;
+
+  
+
+  // Render status and exp pie charts
+  setTimeout(()=>{
+    const statusInst=new Chart(document.getElementById('dash-status-pie').getContext('2d'),{
+      type:'pie',
+      data:{labels:['Permanent','PO Staff'],datasets:[{data:[permanent,poStaff],backgroundColor:['rgba(88,214,141,.85)','rgba(175,122,197,.85)'],borderColor:['#58d68d','#af7ac5'],borderWidth:2}]},
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}`}}}}
+    });
+    dashChartInsts.push(statusInst);
+    const expInst=new Chart(document.getElementById('dash-exp-pie').getContext('2d'),{
+      type:'pie',
+      data:{labels:expRanges.map(r=>r.label),datasets:[{data:expCounts,backgroundColor:expColors.map(c=>c+'CC'),borderColor:expColors,borderWidth:2}]},
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} staff`}}}}
+    });
+    dashChartInsts.push(expInst);
+  },50);
+  renderForecast();
+}
+
+
+async function exportDashboardPDF(){
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const margin=10;
+  const pageW=pdf.internal.pageSize.getWidth();
+  const pageH=pdf.internal.pageSize.getHeight();
+  const usableW=pageW-margin*2;
+  const usableH=pageH-margin*2;
+  let addedFirstPage=false;
+
+  async function capture(el, scale){
+    return await html2canvas(el,{scale:scale||1.1,useCORS:true,backgroundColor:'#0a0a0a'});
+  }
+
+  // Draws a canvas onto the current page starting at yMM; if it doesn't fit,
+  // slices it across as many additional pages as needed. Returns nothing —
+  // always leaves the cursor ready for a fresh page afterwards.
+  function addCanvasPaged(canvas, startNewPage){
+    if(startNewPage && addedFirstPage) pdf.addPage('a4','portrait');
+    addedFirstPage=true;
+    const ratio=usableW/canvas.width;
+    const fullH=canvas.height*ratio;
+    if(fullH<=usableH){
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',margin,margin,usableW,fullH);
+      return;
+    }
+    const rowPx=Math.floor(usableH/ratio);
+    let yPx=0, page=0;
+    while(yPx<canvas.height){
+      if(page>0) pdf.addPage('a4','portrait');
+      const sliceH=Math.min(rowPx,canvas.height-yPx);
+      const sc=document.createElement('canvas');
+      sc.width=canvas.width; sc.height=sliceH;
+      sc.getContext('2d').drawImage(canvas,0,yPx,canvas.width,sliceH,0,0,canvas.width,sliceH);
+      pdf.addImage(sc.toDataURL('image/png'),'PNG',margin,margin,usableW,sliceH*ratio);
+      yPx+=sliceH; page++;
+    }
+  }
+
+  try{
+    toast('Generating PDF — please wait...');
+
+    // PAGE 1: summary stats + section/status/experience pie charts (compact scale)
+    const statsEl=document.getElementById('dash-stats');
+    const chartsEl=document.getElementById('dash-charts-row');
+    if(statsEl){
+      const statsCanvas=await capture(statsEl,1.4);
+      addCanvasPaged(statsCanvas,true);
+    }
+    if(chartsEl){
+      const chartsCanvas=await capture(chartsEl,1.0);
+      addCanvasPaged(chartsCanvas,true);
+    }
+
+    // PAGE 2: predictive analysis / MH load forecast table only
+    const forecastMhEl=document.getElementById('forecast-mh-section');
+    if(forecastMhEl){
+      const c=await capture(forecastMhEl,1.1);
+      addCanvasPaged(c,true);
+    }
+
+    // PAGE 3: capacity & workload analysis (bottlenecks, load balancing, overtime)
+    const forecastCapacityEl=document.getElementById('forecast-capacity-section');
+    if(forecastCapacityEl){
+      const c=await capture(forecastCapacityEl,1.1);
+      addCanvasPaged(c,true);
+    }
+
+    // PAGE 4+: staff availability table only (sliced across pages if long)
+    const forecastStaffEl=document.getElementById('forecast-staff-section');
+    if(forecastStaffEl){
+      // The table sits in a scrollable max-height container — expand it
+      // temporarily so the full list is captured, not just the visible scroll window.
+      const scrollWrap=document.getElementById('forecast-staff-table-wrap');
+      const prevMaxHeight=scrollWrap?scrollWrap.style.maxHeight:null;
+      const prevOverflow=scrollWrap?scrollWrap.style.overflowY:null;
+      if(scrollWrap){ scrollWrap.style.maxHeight='none'; scrollWrap.style.overflowY='visible'; }
+      const c=await capture(forecastStaffEl,1.0);
+      if(scrollWrap){ scrollWrap.style.maxHeight=prevMaxHeight; scrollWrap.style.overflowY=prevOverflow; }
+      addCanvasPaged(c,true);
+    }
+
+    pdf.save('Dashboard_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('PDF exported');
+  } catch(err){
+    console.error(err);
+    toast('Export failed: '+err.message);
   }
 }
  
+function renderForecast(){
+  const container=document.getElementById('dash-forecast-section');
+  if(!container) return;
+  const now=new Date();
+  const curYear=now.getFullYear();
+  const curMonth=now.getMonth(); // 0-indexed
+
+  // Build next 3 months
+  const nextMonths=[];
+  for(let i=1;i<=3;i++){
+    const mo=(curMonth+i)%12;
+    const yr=curYear+Math.floor((curMonth+i)/12);
+    nextMonths.push({mo, yr, label:MONTHS[mo]+' '+yr});
+  }
+
+  // Get all sections
+  const engSections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
+
+  // ── FORECAST 1: MH Load per section next 3 months ──────────────────────
+  function getForecastMH(sectionKey, mo, yr){
+    let staffList=data.staff;
+    if(sectionKey==='__engineers__') staffList=staffList.filter(s=>s.category==='engineer');
+    else if(sectionKey==='__dd__') staffList=staffList.filter(s=>s.category==='designer_drafter');
+    else staffList=staffList.filter(s=>s.section===sectionKey);
+    const ids=staffList.map(s=>s.id);
+    const includeDD=(sectionKey==='__dd__');
+    const capacity=ids.length*MAX_MH_PER_STAFF;
+    let forecastMH=0;
+
+    data.projects.forEach(p=>{
+      // Check if project is active during target month
+      const ps=parseMMYYYY(p.startDate);
+      const pe=parseMMYYYY(p.endDate);
+      if(!ps||!pe) return;
+      // target month as 1-indexed
+      const targetAbs=yr*12+(mo+1);
+      const startAbs=ps.year*12+ps.month;
+      const endAbs=pe.year*12+pe.month;
+      if(targetAbs<startAbs||targetAbs>endAbs) return;
+
+      // Get staff MH records for this project in this section
+      // (D&D manhours are logged under the special '__dd_section__' id, not individual staff ids)
+      const projMHRecords=data.staffMH.filter(m=>m.projectId===p.id&&(ids.includes(m.staffId)||(includeDD&&m.staffId==='__dd_section__')));
+      if(!projMHRecords.length) return;
+
+      // Calculate average monthly MH from historical data
+      // Find how many months this project has actual progress entries
+      const monthsWithData=p.months&&p.months.length>0?p.months.length:(p.duration||1);
+
+      // Calculate total MH given for these staff on this project
+      const totalMHGiven=projMHRecords.reduce((a,m)=>a+(+m.mhGiven||0),0);
+
+      // If project has a defined month entry for target, use its progress weight
+      const pm=p.months&&p.months.find(m=>{
+        const parts=m.label.split(' ');
+        return MONTHS.indexOf(parts[0])===mo&&parseInt(parts[1])===yr;
+      });
+
+      let estimatedMH=0;
+      if(pm){
+        // Use actual defined progress for this month
+        const totalProgress=p.months.reduce((a,m)=>a+(+m.progress||0),0)||100;
+        const pct=(+pm.progress||0)/totalProgress;
+        estimatedMH=Math.round(totalMHGiven*pct);
+      } else {
+        // Extrapolate: use average monthly MH consumption from existing data
+        // Average = total MH given / project duration in months
+        const avgMonthlyMH=totalMHGiven/(p.duration||monthsWithData||1);
+        estimatedMH=Math.round(avgMonthlyMH);
+      }
+
+      forecastMH+=estimatedMH;
+    });
+
+    return {forecastMH, capacity};
+  }
+
+
+
+  
+
+  // ── BUILD HTML ───────────────────────────────────────────────────────────
+  let html=`<div class="card" style="margin-bottom:16px" id="forecast-mh-section">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:18px">📊</span>
+      <h2 style="margin:0;font-size:16px">Predictive Analysis & Forecast</h2>
+      <span style="font-size:11px;color:var(--text-muted);margin-left:auto">Based on current project data</span>
+    </div>`;
+
+  // Build current month
+  const curMonthObj={mo:curMonth, yr:curYear, label:MONTHS[curMonth]+' '+curYear+' (Now)'};
+  const allForecastMonths=[curMonthObj, ...nextMonths];
+
+  // Section MH Load Forecast table
+  html+=`<h3 style="margin-bottom:10px">MH Load Forecast — Current & Next 3 Months</h3>
+    <div class="table-wrap" style="margin-bottom:20px"><table>
+    <thead><tr><th>Section</th>
+      ${allForecastMonths.map((m,i)=>`<th style="${i===0?'background:rgba(232,160,32,.15);':''}">${m.label}<br><span style="font-size:10px;font-weight:400;color:var(--text-muted)">Forecast / Capacity</span></th>`).join('')}
+    </tr></thead><tbody>`;
+
+  const forecastGroups=[
+    {key:'__engineers__',label:'All Engineers'},
+    {key:'__dd__',label:'Designers & Drafters'},
+    ...engSections.map(s=>({key:s,label:s}))
+  ];
+  const groupMonthlyPct={}; // key -> [pct per month in allForecastMonths order], used for bottleneck detection below
+
+  forecastGroups.forEach(g=>{
+    html+=`<tr><td><strong>${esc(g.label)}</strong></td>`;
+    groupMonthlyPct[g.key]=[];
+    allForecastMonths.forEach(({mo,yr},i)=>{
+      const {forecastMH,capacity}=getForecastMH(g.key,mo,yr);
+      const pct=capacity>0?Math.round(forecastMH/capacity*100):0;
+      groupMonthlyPct[g.key].push(pct);
+      const color=pct>90?'#ec7063':pct>70?'#e8a020':'#58d68d';
+      const flag=pct>90?' ⚠':'';
+      html+=`<td style="${i===0?'background:rgba(232,160,32,.08);':''}">
+        <div style="font-size:13px;font-weight:600;color:${color}">${forecastMH.toLocaleString()}${flag}</div>
+        <div style="font-size:11px;color:var(--text-muted)">of ${capacity.toLocaleString()} (${pct}%)</div>
+        <div style="background:var(--surface2);border-radius:3px;height:4px;margin-top:4px">
+          <div style="height:4px;border-radius:3px;background:${color};width:${Math.min(pct,100)}%"></div>
+        </div>
+      </td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  html+=`</div>`; // close #forecast-mh-section card
+
+  // ── CAPACITY & WORKLOAD ANALYSIS ─────────────────────────────────────────
+  html+=`<div class="card" id="forecast-capacity-section" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:18px">⚡</span>
+      <h2 style="margin:0;font-size:16px">Capacity & Workload Analysis</h2>
+    </div>`;
+
+  // 1. Bottleneck detector — sections forecasted ≥90% capacity for 2+ consecutive months
+  function findBottlenecks(){
+    const flagged=[];
+    forecastGroups.forEach(g=>{
+      const pcts=groupMonthlyPct[g.key]||[];
+      let streak=0, maxStreak=0, bestStart=-1;
+      for(let i=0;i<pcts.length;i++){
+        if(pcts[i]>=90){ streak++; if(streak>maxStreak){ maxStreak=streak; bestStart=i-streak+1; } }
+        else streak=0;
+      }
+      if(maxStreak>=2){
+        const months=allForecastMonths.slice(bestStart,bestStart+maxStreak).map(m=>m.label.replace(' (Now)','')).join(', ');
+        flagged.push({label:g.label,maxStreak,months});
+      }
+    });
+    return flagged;
+  }
+  const bottlenecks=findBottlenecks();
+  html+=`<h3 style="margin-bottom:10px">Bottleneck Alerts</h3>`;
+  if(bottlenecks.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">`;
+    bottlenecks.forEach(b=>{
+      html+=`<div style="background:rgba(236,112,99,.1);border:1px solid rgba(236,112,99,.4);border-radius:6px;padding:10px 14px;font-size:12px">
+        <strong style="color:#ec7063">⚠ ${esc(b.label)}</strong> is forecasted at ≥90% capacity for <strong>${b.maxStreak} consecutive months</strong> (${esc(b.months)}). Consider reinforcement or reassignment before this window.
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div class="empty" style="padding:12px 0 20px">No sustained (2+ month) capacity bottlenecks detected.</div>`;
+  }
+
+  // 2. Cross-section load balancing suggestions — current month only
+  html+=`<h3 style="margin-bottom:10px">Load Balancing Suggestions — ${esc(curMonthObj.label.replace(' (Now)',''))}</h3>`;
+  const sectionPctNow=engSections.map(sec=>{
+    const {forecastMH,capacity}=getForecastMH(sec,curMonth,curYear);
+    const pct=capacity>0?Math.round(forecastMH/capacity*100):0;
+    return {sec,pct};
+  });
+  const overloaded=sectionPctNow.filter(s=>s.pct>=90).sort((a,b)=>b.pct-a.pct);
+  const underloaded=sectionPctNow.filter(s=>s.pct<70).sort((a,b)=>a.pct-b.pct);
+  if(overloaded.length&&underloaded.length){
+    html+=`<div class="table-wrap" style="margin-bottom:20px"><table>
+      <thead><tr><th>Overloaded Section</th><th>Load</th><th>Suggested Support From</th><th>Candidate Staff</th></tr></thead><tbody>`;
+    overloaded.forEach(o=>{
+      const donor=underloaded.find(u=>u.sec!==o.sec);
+      let candidateName='No immediately available staff';
+      if(donor){
+        const donorStaff=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'&&s.section===donor.sec));
+        const candidate=donorStaff.find(s=>getStaffStatus(s).status==='Available Now');
+        if(candidate) candidateName=`${esc(candidate.name)} (${esc(candidate.role)})`;
+      }
+      html+=`<tr>
+        <td><strong>${esc(o.sec)}</strong></td>
+        <td style="color:#ec7063;font-weight:600">${o.pct}%</td>
+        <td>${donor?esc(donor.sec)+' ('+donor.pct+'%)':'-'}</td>
+        <td>${candidateName}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  } else {
+    html+=`<div class="empty" style="padding:12px 0 20px">No clear over/under-capacity pairing this month.</div>`;
+  }
+
+  // 3. Overtime cost estimator — current month only
+  html+=`<h3 style="margin-bottom:10px">Overtime Cost Estimator — ${esc(curMonthObj.label.replace(' (Now)',''))}</h3>
+    <div class="form-group" style="max-width:220px;margin-bottom:12px">
+      <label>Overtime Rate (per MH)</label>
+      <input id="ot-rate-input" type="number" min="0" step="0.5" value="${otRatePerHour}" oninput="otRatePerHour=+this.value||0; renderOvertimeResults();">
+    </div>
+    <div id="overtime-results"></div>`;
+
+  // Renders only the results table/summary — never touches #ot-rate-input, so typing never loses cursor position.
+  function renderOvertimeResults(){
+    const el=document.getElementById('overtime-results');
+    if(!el) return;
+    const overtimeRows=forecastGroups.map(g=>{
+      const {forecastMH,capacity}=getForecastMH(g.key,curMonth,curYear);
+      const pct=capacity>0?Math.round(forecastMH/capacity*100):(forecastMH>0?999:0);
+      const otHours=Math.max(0,forecastMH-capacity);
+      return {label:g.label,pct,otHours,otCost:otHours*otRatePerHour};
+    }).filter(r=>r.pct>=90); // matches the same >90% warning threshold used in the MH Load Forecast table above
+    if(overtimeRows.length){
+      const totalHours=overtimeRows.reduce((a,r)=>a+r.otHours,0);
+      const totalCost=overtimeRows.reduce((a,r)=>a+r.otCost,0);
+      el.innerHTML=`<div class="table-wrap" style="margin-bottom:8px"><table>
+        <thead><tr><th>Section</th><th>Load %</th><th>Overtime Hours</th><th>Estimated Cost</th></tr></thead><tbody>
+        ${overtimeRows.map(r=>`<tr><td>${esc(r.label)}</td><td style="color:${r.pct>=100?'#ec7063':'#e8a020'};font-weight:600">${r.pct}%</td><td>${r.otHours.toLocaleString()}</td><td>${otRatePerHour>0?r.otCost.toLocaleString(undefined,{maximumFractionDigits:2}):'-'}</td></tr>`).join('')}
+        </tbody></table></div>
+        <div style="font-size:12px;color:var(--text-muted)">Total estimated overtime: <strong style="color:var(--accent)">${totalHours.toLocaleString()} hrs</strong>${otRatePerHour>0?` &nbsp;|&nbsp; Estimated cost: <strong style="color:var(--accent)">${totalCost.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>`:''}</div>`;
+    } else {
+      el.innerHTML=`<div class="empty" style="padding:12px 0">No sections are forecasted to exceed capacity this month.</div>`;
+    }
+  }
+  // Expose globally so the input's oninput handler (fired well after this closure runs) can call the latest version.
+  window.renderOvertimeResults=renderOvertimeResults;
+  html+=`</div>`; // close #forecast-capacity-section card
+
+  html+=`<div class="card" id="forecast-staff-section">`;
+
+  // ── FORECAST 3: Full staff availability list ─────────────────────────────
+  function getStaffStatus(s){
+    // Find all projects this staff is on
+    const activeProjs=data.projects.filter(p=>p.dutyStaff&&p.dutyStaff.includes(s.id));
+    if(!activeProjs.length) return {status:'Available Now', statusColor:'#58d68d', projects:[]};
+
+    // Find latest end date among active projects
+    let latestEndAbs=0;
+    let latestEndLabel='';
+    activeProjs.forEach(p=>{
+      const pe=parseMMYYYY(p.endDate);
+      if(!pe) return;
+      const abs=pe.year*12+pe.month;
+      if(abs>latestEndAbs){ latestEndAbs=abs; latestEndLabel=p.endDate; }
+    });
+    if(!latestEndAbs) return {status:'Available Now', statusColor:'#58d68d', projects:activeProjs};
+
+    const curAbs=curYear*12+(curMonth+1);
+    const diff=latestEndAbs-curAbs;
+
+    if(diff<0){
+      // All projects ended
+      return {status:'Available Now', statusColor:'#58d68d', projects:activeProjs};
+    } else {
+      // Still active — available after latest end
+      const availMo=latestEndAbs%12||12;
+      const availYr=Math.floor((latestEndAbs)/12)+(latestEndAbs%12===0?0:0);
+      // calc properly
+      const endParsed=parseMMYYYY(latestEndLabel);
+      let nextMo=endParsed.month%12+1;
+      let nextYr=endParsed.year+(endParsed.month===12?1:0);
+      if(diff===0){
+        return {status:`Available ${MONTHS[nextMo-1]} ${nextYr}`, statusColor:'#e8a020', projects:activeProjs};
+      } else if(diff<=2){
+        return {status:`Available ${MONTHS[nextMo-1]} ${nextYr}`, statusColor:'#e8a020', projects:activeProjs};
+      } else {
+        return {status:`Available ${MONTHS[nextMo-1]} ${nextYr}`, statusColor:'#ec7063', projects:activeProjs};
+      }
+    }
+  }
+
+  const forecastSecFilter=document.getElementById('forecast-sec-filter')?document.getElementById('forecast-sec-filter').value:'all';
+  let staffForForecast=sortStaffEngFirst(data.staff.filter(s=>s.category==='engineer'));
+  if(forecastSecFilter!=='all') staffForForecast=staffForForecast.filter(s=>s.section===forecastSecFilter);
+
+  const staffWithStatus=staffForForecast.map(s=>({s,...getStaffStatus(s)}));
+
+  const forecastSections=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
+
+  html+=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <h3 style="margin:0">Staff Availability</h3>
+    <select id="forecast-sec-filter" onchange="renderForecast()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:6px 10px;font-size:12px">
+      <option value="all">All Sections</option>
+      ${forecastSections.map(sec=>`<option value="${sec}" ${forecastSecFilter===sec?'selected':''}>${esc(sec)}</option>`).join('')}
+    </select>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:auto">${staffWithStatus.length} staff</span>
+  </div>
+  <div class="table-wrap" style="margin-bottom:8px">
+    <div id="forecast-staff-table-wrap" style="max-height:360px;overflow-y:auto" class="print-expand">
+      <table style="width:100%">
+      <thead style="position:sticky;top:0;z-index:1"><tr>
+        <th>#</th><th>Staff</th><th>Section</th><th>Level</th><th>Status</th><th>Category</th><th>Active Projects</th>
+      </tr></thead><tbody>`;
+
+  staffWithStatus.forEach(({s,status,statusColor,projects},i)=>{
+    html+=`<tr>
+      <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td>${esc(s.section)}</td>
+      <td>${esc(s.role)}</td>
+      <td style="color:${statusColor};font-weight:600;white-space:nowrap">${esc(status)}</td>
+      <td>${s.category==='engineer'?'Engineer':'Designer & Drafter'}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${projects.map(p=>esc(p.name)).join(', ')||'-'}</td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+      <span style="color:#58d68d">■</span> Available Now &nbsp;
+      <span style="color:#e8a020">■</span> Available within 2 months &nbsp;
+      <span style="color:#ec7063">■</span> Occupied beyond 2 months
+    </div>`;
+
+  html+=`<div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;margin-top:8px">
+    ⓘ Forecast is based on existing project progress percentages and manhour allocations. Red = &gt;90% capacity, Orange = &gt;70%, Green = within capacity.
+  </div></div>`;
+
+  container.innerHTML=html;
+  renderOvertimeResults();
+}
+
 // ===================== CHART =====================
 let mhChartInst=null;
 function buildYearList(){
   const years=new Set();
   const curYear=new Date().getFullYear();
-  years.add(curYear); years.add(curYear-1); years.add(curYear+1);
+  for(let y=2024;y<=curYear+1;y++) years.add(y);
   data.projects.forEach(p=>{
     if(p.months) p.months.forEach(m=>{ const y=m.label.split(' ')[1]; if(y) years.add(parseInt(y)); });
     if(p.startDate){ const y=p.startDate.split('/')[1]; if(y) years.add(parseInt(y)); }
@@ -1459,8 +2279,13 @@ function renderChart(){
   const actualByMonth=Array(12).fill(0);
 
   projs.forEach(p=>{
-    const projMhGiven=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhGiven||0),0);
-    const projMhActual=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhActual||0),0);
+    const ddMH=groupKey==='dd'||groupKey==='all'
+      ? data.staffMH.filter(m=>m.projectId===p.id&&m.staffId==='__dd_section__')
+      : [];
+    const projMhGiven=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhGiven||0),0)
+      +ddMH.reduce((a,m)=>a+(+m.mhGiven||0),0);
+    const projMhActual=data.staffMH.filter(m=>m.projectId===p.id&&groupStaff.includes(m.staffId)).reduce((a,m)=>a+(+m.mhActual||0),0)
+      +ddMH.reduce((a,m)=>a+(+m.mhActual||0),0);
     if(p.months&&p.months.length){
       const projMonthsInYear=p.months.filter(m=>parseInt(m.label.split(' ')[1])===year);
       const totalMo=p.months.length||1;
@@ -1494,8 +2319,8 @@ function renderChart(){
     data:{
       labels:MONTHS,
       datasets:[
-        {label:'MH Given',data:givenByMonth,backgroundColor:'rgba(232,160,32,.8)',borderRadius:4},
-        {label:'MH Actual',data:actualByMonth,backgroundColor:'rgba(93,173,226,.8)',borderRadius:4},
+        {label:'MH Project',data:givenByMonth,backgroundColor:'rgba(232,160,32,.8)',borderRadius:4},
+        {label:'MH Required',data:actualByMonth,backgroundColor:'rgba(93,173,226,.8)',borderRadius:4},
         {label:`Max MH (${maxMH.toLocaleString()})`,data:Array(12).fill(maxMH),type:'line',borderColor:'rgba(192,57,43,.7)',borderWidth:2,pointRadius:0,fill:false,tension:0}
       ]
     },
@@ -1567,16 +2392,15 @@ function showWeeklyPopup(monthIndex, totalGiven, totalActual, year){
         style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1">×</button>
     </div>
     <div style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;display:flex;gap:24px;font-size:13px">
-      <span>Month Total Given: <strong style="color:var(--accent)">${totalGiven.toLocaleString()}</strong></span>
-      <span>Actual: <strong style="color:#5dade2">${totalActual.toLocaleString()}</strong></span>
+      <span>Month Total Project: <strong style="color:var(--accent)">${totalGiven.toLocaleString()}</strong></span>
+      <span>Required: <strong style="color:#5dade2">${totalActual.toLocaleString()}</strong></span>
     </div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
         <tr style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">
           <th style="padding:6px 10px;text-align:left">Week</th>
-          <th style="padding:6px 10px;text-align:right">Given</th>
-          <th style="padding:6px 10px;text-align:right">Actual</th>
-          <th style="padding:6px 10px;text-align:right">Util</th>
+          <th style="padding:6px 10px;text-align:right">Project</th>
+          <th style="padding:6px 10px;text-align:right">Required</th>
           <th style="padding:6px 10px"></th>
         </tr>
       </thead>
@@ -1671,8 +2495,8 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
  
   // Staff sheet
-  const staffRows=[['Staff ID','Name','Category','Section','Role','Status']];
-  data.staff.forEach(s=>staffRows.push([s.id,s.name,s.category,s.section,s.role,s.status]));
+  const staffRows=[['Staff ID','Name','Category','Section','Role','Status','Years of Experience']];
+  data.staff.forEach(s=>staffRows.push([s.id,s.name,s.category,s.section,s.role,s.status,s.exp||0]));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(staffRows),'Staff');
  
   // ProjectprojRowss sheet
@@ -1686,14 +2510,16 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(projRows),'Projects');
  
   // Staff MH sheet
-  const mhRows=[['Record ID','Staff ID','Staff Name','Project ID','Project Name','MH Given','MH Actual']];
+  const mhRows=[['Record ID','Staff ID','Staff Name','Project ID','Project Name','MH Project','MH Required']];
   data.staffMH.forEach(m=>{
     const s=data.staff.find(x=>x.id===m.staffId);
     const p=data.projects.find(x=>x.id===m.projectId);
     mhRows.push([m.id,m.staffId,s?s.name:'',m.projectId,p?p.name:'',m.mhGiven,m.mhActual]);
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(mhRows),'Staff_MH');
- 
+  const orgRows=[['hod','advisor','deputy','secretary','draftCoord','taskForce']];
+  orgRows.push([orgConfig.hod,orgConfig.advisor,orgConfig.deputy,orgConfig.secretary,orgConfig.draftCoord,JSON.stringify(orgConfig.taskForce)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(orgRows),'OrgConfig');
   XLSX.writeFile(wb,'ENG_Manhours_'+new Date().toISOString().slice(0,10)+'.xlsx');
   toast('Excel exported');
 }
@@ -1708,8 +2534,8 @@ function importExcel(e){
       // Staff
       if(wb.SheetNames.includes('Staff')){
         const rows=XLSX.utils.sheet_to_json(wb.Sheets['Staff'],{header:1}).slice(1);
-        data.staff=rows.filter(r=>r[0]).map(r=>({id:r[0],name:r[1],category:r[2],section:r[3],role:r[4],status:r[5]}));      }
-      // Projects
+        data.staff=rows.filter(r=>r[0]).map(r=>({id:r[0],name:r[1],category:r[2],section:r[3],role:r[4],status:r[5]==='Agency'?'PO Staff':r[5],exp:+r[6]||0}));
+      }// Projects
       if(wb.SheetNames.includes('Projects')){
         const rows=XLSX.utils.sheet_to_json(wb.Sheets['Projects'],{header:1}).slice(1);
         data.projects=rows.filter(r=>r[0]).map(r=>{
@@ -1728,8 +2554,17 @@ function importExcel(e){
         const rows=XLSX.utils.sheet_to_json(wb.Sheets['Staff_MH'],{header:1}).slice(1);
         data.staffMH=rows.filter(r=>r[0]).map(r=>({id:r[0],staffId:r[1],projectId:r[3],mhGiven:+r[5]||0,mhActual:+r[6]||0}));
       }
-      renderDashboard(); renderStaffTable(); renderProjTable();
-      toast('Excel imported successfully');
+      if(wb.SheetNames.includes('OrgConfig')){
+        const orows=XLSX.utils.sheet_to_json(wb.Sheets['OrgConfig'],{header:1}).slice(1);
+        if(orows[0]){
+          orgConfig.hod=orows[0][0]||'';
+          orgConfig.advisor=orows[0][1]||'';
+          orgConfig.deputy=orows[0][2]||'';
+          orgConfig.secretary=orows[0][3]||'';
+          orgConfig.draftCoord=orows[0][4]||'';
+          try{ orgConfig.taskForce=JSON.parse(orows[0][5])||[]; }catch(e){ orgConfig.taskForce=[]; }
+        }
+      }
     } catch(err){ toast('Import error: '+err.message); }
   };
   reader.readAsBinaryString(file);
@@ -1744,7 +2579,305 @@ refreshLeadDropdown();
 // Build year selector
 const yearSel=document.getElementById('chart-year');
 const curYear=new Date().getFullYear();
-[curYear-1,curYear,curYear+1].forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; if(y===curYear) o.selected=true; yearSel.appendChild(o); });
+for(let y=2024;y<=curYear+1;y++){ const o=document.createElement('option'); o.value=y; o.textContent=y; if(y===curYear) o.selected=true; yearSel.appendChild(o); }
+
+// ===================== ORG CHART =====================
+let orgConfig = {
+  hod: '', advisor: '', deputy: '', secretary: '',
+  draftCoord: '', taskForce: []
+};
+
+function showPage_orgchart_init(){
+  // populate dropdowns with lead engineers
+  const leadStaff=data.staff.filter(s=>s.category==='engineer'&&['Lead Engineer','Senior Engineer'].includes(s.role));
+  const leadDD=data.staff.filter(s=>s.category==='designer_drafter'&&['Lead Designer','Lead Drafter'].includes(s.role));
+  const allLeads=[...leadStaff,...leadDD].sort((a,b)=>a.name.localeCompare(b.name));
+  const opts=[{value:'',label:'-- None --'},...allLeads.map(s=>({value:s.id,label:`${s.name} (${s.role})`}))];
+  const leadOpts=[{value:'',label:'-- None --'},...leadDD.map(s=>({value:s.id,label:`${s.name} (${s.role})`}))];
+  buildSearchSelect('org-hod-wrap', opts, ()=>{}, 'Search lead...');
+  buildSearchSelect('org-advisor-wrap', opts, ()=>{}, 'Search lead...');
+  buildSearchSelect('org-deputy-wrap', opts, ()=>{}, 'Search lead...');
+  buildSearchSelect('org-draftcoord-wrap', leadOpts, ()=>{}, 'Search drafting lead...');
+  if(orgConfig.hod) ssSetValue('org-hod-wrap', orgConfig.hod, data.staff.find(s=>s.id===orgConfig.hod)?.name||'');
+  if(orgConfig.advisor) ssSetValue('org-advisor-wrap', orgConfig.advisor, data.staff.find(s=>s.id===orgConfig.advisor)?.name||'');
+  if(orgConfig.deputy) ssSetValue('org-deputy-wrap', orgConfig.deputy, data.staff.find(s=>s.id===orgConfig.deputy)?.name||'');
+  if(orgConfig.draftCoord) ssSetValue('org-draftcoord-wrap', orgConfig.draftCoord, data.staff.find(s=>s.id===orgConfig.draftCoord)?.name||'');
+  document.getElementById('org-secretary-input').value=orgConfig.secretary||'';
+  renderTFList();
+}
+
+function showOrgConfigModal(){
+  showPage_orgchart_init();
+  document.getElementById('org-config-modal').classList.add('open');
+}
+function closeOrgModal(){
+  document.getElementById('org-config-modal').classList.remove('open');
+}
+function switchOrgTab(tab){
+  const tabs=['top','drafting','taskforce'];
+  document.querySelectorAll('#org-config-tabs .tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===tab));
+  document.querySelectorAll('#org-config-modal .tab-content').forEach((c,i)=>c.classList.toggle('active',tabs[i]===tab));
+}
+function saveOrgTop(){
+  orgConfig.hod=ssGetValue('org-hod-wrap');
+  orgConfig.advisor=ssGetValue('org-advisor-wrap');
+  orgConfig.deputy=ssGetValue('org-deputy-wrap');
+  orgConfig.secretary=document.getElementById('org-secretary-input').value.trim();
+  toast('Top level saved'); renderOrgChart();
+}
+function saveOrgDrafting(){
+  orgConfig.draftCoord=ssGetValue('org-draftcoord-wrap');
+  toast('Drafting config saved'); renderOrgChart();
+}
+function addTaskForce(){
+  const name=document.getElementById('tf-name-input').value.trim();
+  const role=document.getElementById('tf-role-input').value.trim();
+  if(!name){ toast('Enter a name'); return; }
+  orgConfig.taskForce.push({id:uid('TF'),name,role});
+  document.getElementById('tf-name-input').value='';
+  document.getElementById('tf-role-input').value='';
+  renderTFList(); renderOrgChart();
+}
+function deleteTF(id){
+  orgConfig.taskForce=orgConfig.taskForce.filter(t=>t.id!==id);
+  renderTFList(); renderOrgChart();
+}
+function editTF(id){
+  const t=orgConfig.taskForce.find(x=>x.id===id); if(!t) return;
+  document.getElementById('tf-name-input').value=t.name;
+  document.getElementById('tf-role-input').value=t.role;
+  deleteTF(id);
+}
+function renderTFList(){
+  const el=document.getElementById('tf-list'); if(!el) return;
+  if(!orgConfig.taskForce.length){ el.innerHTML='<div class="empty" style="padding:12px">No task force members added.</div>'; return; }
+  el.innerHTML=orgConfig.taskForce.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px">
+      <div style="flex:1"><strong style="font-size:13px">${esc(t.name)}</strong><span style="color:var(--text-muted);font-size:12px;margin-left:8px">${esc(t.role)}</span></div>
+      <button class="btn btn-secondary btn-sm" onclick="editTF('${t.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteTF('${t.id}')">Delete</button>
+    </div>`).join('');
+}
+
+function orgBox(title, name, sub, type=''){
+  if(!name) return '';
+  return `<div class="org-box ${type}">
+    <div class="org-box-title">${esc(title)}</div>
+    <div class="org-box-name">${esc(name)}</div>
+    ${sub?`<div class="org-box-sub">${esc(sub)}</div>`:''}
+  </div>`;
+}
+
+function renderOrgChart(){
+  const wrap=document.getElementById('org-chart-wrap'); if(!wrap) return;
+  const hod=data.staff.find(s=>s.id===orgConfig.hod);
+  const advisor=data.staff.find(s=>s.id===orgConfig.advisor);
+  const deputy=data.staff.find(s=>s.id===orgConfig.deputy);
+  const draftCoord=data.staff.find(s=>s.id===orgConfig.draftCoord);
+
+  const levelOrder={'Lead Engineer':0,'Senior Engineer':1,'Engineer':2};
+  const ddLevelOrder={'Lead Designer':0,'Lead Drafter':0,'Senior Designer':1,'Senior Drafter':1,'Designer':2,'Drafter':2};
+
+  function sortedStaff(list,order){
+    return [...list].sort((a,b)=>(order[a.role]??3)-(order[b.role]??3)||a.name.localeCompare(b.name));
+  }
+  function staffType(role,isDD=false){
+    if(!isDD){
+      if(role==='Lead Engineer') return 't-lead';
+      if(role==='Senior Engineer') return 't-senior';
+      return 't-eng';
+    }
+    if(['Lead Designer','Lead Drafter'].includes(role)) return 't-lead';
+    if(['Senior Designer','Senior Drafter'].includes(role)) return 't-senior';
+    return 't-eng';
+  }
+
+  // Single unified node — all black & white
+  function node(title, name){
+    const displayName=name||'-';
+    return `<div class="ob">
+      <div class="ob-title">${esc(title)}</div>
+      <div class="ob-name">${esc(displayName)}</div>
+    </div>`;
+  }
+  function sectionNode(name){
+    return `<div class="ob t-section"><div class="ob-name">${esc(name)}</div></div>`;
+  }
+  function staffNode(role, name){
+    return `<div class="ob">
+      ${role?`<div class="ob-title">${esc(role)}</div>`:''}
+      <div class="ob-name">${esc(name)}</div>
+    </div>`;
+  }
+  function vline(h=20){
+    return `<div class="oc-v" style="height:${h}px"></div>`;
+  }
+  // Vertical line segment with a horizontal side-branch to a box (left or right)
+  function vlineWithBranch(height, side, boxHtml){
+    const boxW=130, lineLen=100, gap=0; // gap=0 so the line touches the box directly
+    const sideW=boxW+gap+lineLen;
+    const spine=`<div style="width:2px;height:${height}px;background:#555;flex-shrink:0"></div>`;
+    const hline=`<div style="width:${lineLen}px;height:2px;background:#555;flex-shrink:0"></div>`;
+    const gapEl=`<div style="width:${gap}px;flex-shrink:0"></div>`;
+    const boxCell=`<div style="width:${boxW}px;display:flex;justify-content:${side==='left'?'flex-end':'flex-start'};flex-shrink:0">${boxHtml}</div>`;
+    const emptyCell=`<div style="width:${sideW}px;flex-shrink:0"></div>`;
+    return side==='left'
+      ? `<div style="display:flex;align-items:center;justify-content:center">${boxCell}${gapEl}${hline}${spine}${emptyCell}</div>`
+      : `<div style="display:flex;align-items:center;justify-content:center">${emptyCell}${spine}${hline}${gapEl}${boxCell}</div>`;
+  }
+
+  const engSections=[...new Set(
+    data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean)
+  )].sort();
+
+  // Build one engineer section column
+  function buildEngSection(sec){
+    const staffList=sortedStaff(
+      data.staff.filter(s=>s.category==='engineer'&&s.section===sec), levelOrder
+    );
+    return `${sectionNode(sec)}
+      <div class="oc-staff-list">
+        ${staffList.map(s=>staffNode(s.role,s.name)).join('')}
+      </div>`;
+  }
+
+  // Build drafting sub-branches
+  function buildDraftSection(){
+    const ddGroups=[
+      {label:'Lead / Snr Designer', roles:['Lead Designer','Senior Designer']},
+      {label:'Designer', roles:['Designer']},
+      {label:'Senior Drafter', roles:['Senior Drafter']},
+      {label:'Drafter', roles:['Drafter']},
+    ];
+
+    const ddChildren=ddGroups.map(g=>{
+      const staff=sortedStaff(
+        data.staff.filter(s=>s.category==='designer_drafter'&&g.roles.includes(s.role)), ddLevelOrder
+      );
+      return `<div class="oc-child">
+        <div class="oc-child-vline" style="height:20px"></div>
+        ${sectionNode(g.label)}
+        <div class="oc-staff-list" style="margin-top:3px">
+          ${staff.length
+            ? staff.map(s=>staffNode(s.role,s.name)).join('')
+            : '<div class="ob"><div class="ob-title">-</div><div class="ob-name">-</div></div>'}
+        </div>
+      </div>`;
+    });
+
+    // Task force — no repeated "Task Force" title on every box
+    ddChildren.push(`<div class="oc-child">
+      <div class="oc-child-vline" style="height:20px"></div>
+      ${sectionNode('Task Force')}
+      <div class="oc-staff-list" style="margin-top:3px">
+        ${orgConfig.taskForce.length
+          ? orgConfig.taskForce.map(t=>staffNode(t.role||'',t.name)).join('')
+          : '<div class="ob"><div class="ob-name">-</div></div>'}
+      </div>
+    </div>`);
+
+    const coordBlock=draftCoord
+      ? `${vline(20)}${node('Drafting Coordinator',draftCoord.name)}${vline(20)}`
+      : `${vline(20)}${node('Drafting Coordinator','-')}${vline(20)}`;
+
+    return `<div style="display:flex;flex-direction:column;align-items:center">
+      ${sectionNode('Mechanical / Piping (Drafting)')}
+      ${coordBlock}
+      <div class="oc-children">
+        ${ddChildren.join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── BUILD HTML ────────────────────────────────────────────────────────────
+  let html=`<div class="org-wrap"><div id="org-export-area" style="text-align:center">`;
+
+  html+=`<div style="display:inline-flex;flex-direction:column;align-items:center">`;
+
+  // HOD box
+  html+=node('Mechanical / Piping — HOD / Lead Engineer', hod?hod.name:'-');
+
+  // Vertical segment between HOD and Deputy, with Advisor branching to the LEFT
+  html+=vlineWithBranch(100,'left', node('Mechanical / Piping — Advisor', advisor?advisor.name:'-'));
+
+  // Deputy box
+  html+=node('Mechanical / Piping — Deputy HOD / Lead / Senior Engineer', deputy?deputy.name:'-');
+
+  // Vertical segment between Deputy and the department branches, with Secretary branching to the RIGHT.
+  // Kept tall so the Secretary box has clearance and doesn't collide with the branches row below.
+  html+=vlineWithBranch(150,'right', node('Dept. Secretary', orgConfig.secretary||'-'));
+
+  // All branches including drafting as the final column
+  const allBranches=[
+    ...engSections.map(sec=>
+      `<div class="oc-child">
+        <div class="oc-child-vline" style="height:20px"></div>
+        ${buildEngSection(sec)}
+      </div>`
+    ),
+    `<div class="oc-child">
+      <div class="oc-child-vline" style="height:20px"></div>
+      ${buildDraftSection()}
+    </div>`
+  ];
+
+  html+=`<div class="oc-children">${allBranches.join('')}</div>`;
+  html+=`</div>`; // end main column
+
+  html+=`</div></div>`; // close org-export-area and org-wrap
+  wrap.innerHTML=html;
+}
+
+
+
+function exportOrgPDF(){
+  const area=document.getElementById('org-export-area');
+  if(!area){ toast('Nothing to export'); return; }
+  toast('Generating PDF — please wait...');
+  html2canvas(area,{
+    scale:1.5,
+    useCORS:true,
+    backgroundColor:'#ffffff',
+    scrollX:0,
+    scrollY:-window.scrollY,
+    width:area.scrollWidth,
+    height:area.scrollHeight
+  }).then(canvas=>{
+    const {jsPDF}=window.jspdf;
+    const imgData=canvas.toDataURL('image/png');
+    const imgW=canvas.width;
+    const imgH=canvas.height;
+    // A3 landscape: 420 x 297 mm
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
+    const pageW=pdf.internal.pageSize.getWidth();
+    const pageH=pdf.internal.pageSize.getHeight();
+    const margin=10;
+    const usableW=pageW-margin*2;
+    const usableH=pageH-margin*2;
+    const ratio=usableW/imgW;
+    const scaledH=imgH*ratio;
+    if(scaledH<=usableH){
+      // Fits in one page
+      pdf.addImage(imgData,'PNG',margin,margin,usableW,scaledH);
+    } else {
+      // Multi-page: slice canvas
+      const rowPx=Math.floor(usableH/ratio);
+      let yPx=0; let page=0;
+      while(yPx<imgH){
+        if(page>0) pdf.addPage('a3','landscape');
+        const sliceH=Math.min(rowPx,imgH-yPx);
+        const sc=document.createElement('canvas');
+        sc.width=imgW; sc.height=sliceH;
+        sc.getContext('2d').drawImage(canvas,0,yPx,imgW,sliceH,0,0,imgW,sliceH);
+        pdf.addImage(sc.toDataURL('image/png'),'PNG',margin,margin,usableW,sliceH*ratio);
+        yPx+=sliceH; page++;
+      }
+    }
+    pdf.save('OrgChart_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('PDF exported');
+  }).catch(err=>{ console.error(err); toast('Export failed: '+err.message); });
+}
+
 </script>
 </body>
 </html>
