@@ -170,18 +170,18 @@
   .ob {
     border: 2px solid #222;
     border-radius: 3px;
-    padding: 6px 10px;
+    padding: 3px 5px;
     text-align: center;
-    width: 130px;
-    min-width: 130px;
-    max-width: 130px;
+    width: 92px;
+    min-width: 92px;
+    max-width: 92px;
     box-sizing: border-box;
     background: #ffffff;
     display: inline-block;
     vertical-align: top;
   }
   .ob-title {
-    font-size: 9px;
+    font-size: 7px;
     font-weight: 800;
     color: #222;
     text-transform: uppercase;
@@ -191,10 +191,10 @@
     border-bottom: 1px solid #bbb;
   }
   .ob-name {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
     color: #000;
-    line-height: 1.35;
+    line-height: 1.25;
   }
   .ob-sub { font-size: 9px; color: #555; margin-top: 2px; }
 
@@ -239,7 +239,7 @@
     align-items: center;
     gap: 3px;
   }
-  .oc-staff-list .ob { width: 130px; }
+  .oc-staff-list .ob { width: 92px; }
 
   @media print {
     nav,#page-staff,#page-projects,#page-manhours,#page-reports,#page-chart,#page-dashboard,#page-orgchart .btn { display:none!important; }
@@ -2702,7 +2702,7 @@ function renderOrgChart(){
   }
   // Vertical line segment with a horizontal side-branch to a box (left or right)
   function vlineWithBranch(height, side, boxHtml){
-    const boxW=130, lineLen=100, gap=0; // gap=0 so the line touches the box directly
+    const boxW=92, lineLen=70, gap=0; // gap=0 so the line touches the box directly
     const sideW=boxW+gap+lineLen;
     const spine=`<div style="width:2px;height:${height}px;background:#555;flex-shrink:0"></div>`;
     const hline=`<div style="width:${lineLen}px;height:2px;background:#555;flex-shrink:0"></div>`;
@@ -2842,25 +2842,12 @@ function exportOrgPDF(){
     const margin=10;
     const usableW=pageW-margin*2;
     const usableH=pageH-margin*2;
-    const ratio=usableW/imgW;
+    const ratio=Math.min(usableW/imgW, usableH/imgH);
+    const scaledW=imgW*ratio;
     const scaledH=imgH*ratio;
-    if(scaledH<=usableH){
-      // Fits in one page
-      pdf.addImage(imgData,'PNG',margin,margin,usableW,scaledH);
-    } else {
-      // Multi-page: slice canvas
-      const rowPx=Math.floor(usableH/ratio);
-      let yPx=0; let page=0;
-      while(yPx<imgH){
-        if(page>0) pdf.addPage('a2','landscape');
-        const sliceH=Math.min(rowPx,imgH-yPx);
-        const sc=document.createElement('canvas');
-        sc.width=imgW; sc.height=sliceH;
-        sc.getContext('2d').drawImage(canvas,0,yPx,imgW,sliceH,0,0,imgW,sliceH);
-        pdf.addImage(sc.toDataURL('image/png'),'PNG',margin,margin,usableW,sliceH*ratio);
-        yPx+=sliceH; page++;
-      }
-    }
+    const offsetX=margin+(usableW-scaledW)/2;
+    const offsetY=margin+(usableH-scaledH)/2;
+    pdf.addImage(imgData,'PNG',offsetX,offsetY,scaledW,scaledH);
     pdf.save('OrgChart_'+new Date().toISOString().slice(0,10)+'.pdf');
     toast('PDF exported');
   }).catch(err=>{ console.error(err); toast('Export failed: '+err.message); });
