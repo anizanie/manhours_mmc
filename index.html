@@ -554,7 +554,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
     <h2 style="margin:0">Organisation Chart</h2>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="exportOrgPDF()">⬇ Export PDF (A3)</button>
+      <button class="btn btn-secondary" onclick="exportOrgPDF()">⬇ Export PDF (A2)</button>
       <button class="btn btn-primary" onclick="showOrgConfigModal()">⚙ Configure</button>
     </div>
   </div>
@@ -1537,8 +1537,9 @@ function renderProjectStaff(){
       p.months.forEach(m=>{ html+=`<span class="tag">${esc(m.label)}: ${m.progress}%</span>`; });
       html+=`</div>`;
     }
-    const dutyList=p.dutyStaff&&p.dutyStaff.length?p.dutyStaff:records.map(m=>m.staffId);
-    if(dutyList.length){
+    const ddRec=records.find(x=>x.staffId==='__dd_section__');
+    const dutyList=p.dutyStaff&&p.dutyStaff.length?p.dutyStaff:records.map(m=>m.staffId).filter(id=>id!=='__dd_section__');
+    if(dutyList.length||ddRec){
       html+=`<div class="table-wrap"><table>
         <thead><tr><th>Staff</th><th>Section</th><th>Role</th><th>Status</th><th>MH Project</th><th>MH Required</th></tr></thead><tbody>`;
       [...dutyList].sort((a,b)=>{
@@ -1561,12 +1562,11 @@ function renderProjectStaff(){
           <td>${m?(+m.mhActual||0).toLocaleString():'-'}</td>
         </tr>`;
       });
-      // Add DD section row if exists
-      const ddRec=records.find(x=>x.staffId==='__dd_section__');
+      // Add DD section summary row if this project has a Designers & Drafters (section-level) MH record
       if(ddRec){
         html+=`<tr style="background:rgba(175,122,197,.08)">
           <td><strong>Designers & Drafters</strong></td>
-          <td>All DD</td><td>Section</td><td>-</td>
+          <td>-</td><td>All DD</td><td>-</td>
           <td>${(+ddRec.mhGiven||0).toLocaleString()}</td>
           <td>${(+ddRec.mhActual||0).toLocaleString()}</td>
         </tr>`;
@@ -1582,7 +1582,6 @@ function renderProjectStaff(){
  
 // ===================== DASHBOARD =====================
 let dashChartInsts=[];
-let otRatePerHour=0; // user-entered overtime rate per MH, used by the Capacity & Workload overtime estimator
 function renderDashboard(){
   const now=new Date();
   const curYear=now.getFullYear();
@@ -1593,6 +1592,7 @@ function renderDashboard(){
   const dy=document.getElementById('dash-year');
   if(dm&&!dm.children.length){
     const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const allOpt=document.createElement('option'); allOpt.value='all'; allOpt.textContent='All Months (Whole Year)'; dm.appendChild(allOpt);
     mNames.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; dm.appendChild(o); });
     dm.value=curMonth;
   }
@@ -1601,38 +1601,28 @@ function renderDashboard(){
     years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; dy.appendChild(o); });
     dy.value=curYear;
   }
-  const selMonth=+(dm?.value??curMonth);
+  const selMonthRaw=dm?.value??curMonth;
+  const selMonth=selMonthRaw==='all'?'all':+selMonthRaw;
   const selYear=+(dy?.value??curYear);
   const secFilter=document.getElementById('dash-status-section-filter')?.value||'all';
-  const monthLabel=MONTHS[selMonth]+' '+selYear;
+  const monthLabel=selMonth==='all'?('All Months '+selYear):(MONTHS[selMonth]+' '+selYear);
 
   // Destroy old charts
   dashChartInsts.forEach(c=>{ try{ c.destroy(); }catch(e){} });
   dashChartInsts=[];
 
-  // Stat cards
+  // Stat cards (rendered further below, once unutilised MH figures are computed)
   const totalMHGiven=data.staffMH.reduce((a,m)=>a+(+m.mhGiven||0),0);
   const totalMHActual=data.staffMH.reduce((a,m)=>a+(+m.mhActual||0),0);
-  document.getElementById('dash-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-val">${data.staff.length}</div><div class="stat-label">Total Staff</div></div>
-    <div class="stat-card"><div class="stat-val">${data.projects.length}</div><div class="stat-label">Total Projects</div></div>
-    <div class="stat-card"><div class="stat-val">${totalMHGiven.toLocaleString()}</div><div class="stat-label">Total MH Project</div></div>
-    <div class="stat-card"><div class="stat-val">${totalMHActual.toLocaleString()}</div><div class="stat-label">Total MH Required</div></div>
-  `;
 
   // ── PIE CHARTS: MH per section for selected month ──────────────────────
   const engSections=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
-  const groups=[
-    {key:'all',label:'All Staff'},
-    {key:'__engineers__',label:'All Engineers'},
-    {key:'__dd__',label:'Designers & Drafters'},
-    ...engSections.map(s=>({key:s,label:s}))
-  ];
   const mhColumn=document.getElementById('dash-mh-column');
   mhColumn.innerHTML='<div class="card" style="margin-bottom:16px"><h3 style="margin-bottom:12px">Manhours by Section</h3><div id="dash-mh-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div></div>';
   const mhGrid=document.getElementById('dash-mh-grid');
 
-  function getMHForGroupMonth(groupKey, monthIdx, year){
+  // Computes {given, actual, capacity, unutilised} for one group in one specific month
+  function getMHForGroupSingleMonth(groupKey, monthIdx, year){
     let staffIds=data.staff;
     if(groupKey==='__engineers__') staffIds=staffIds.filter(s=>s.category==='engineer');
     else if(groupKey==='__dd__') staffIds=staffIds.filter(s=>s.category==='designer_drafter');
@@ -1653,9 +1643,21 @@ function renderDashboard(){
       data.staffMH.filter(m=>m.projectId===p.id&&(ids.includes(m.staffId)||(includeDD&&m.staffId==='__dd_section__')))
         .forEach(m=>{ given+=Math.round((+m.mhGiven||0)*pct); actual+=Math.round((+m.mhActual||0)*pct); });
       });
-    return {given, actual};
+    const unutilised=Math.max(0,capacity-actual);
+    return {given, actual, capacity, unutilised};
   }
-  function makePieChart(containerId, label, given, actual){
+
+  // Wrapper that either returns a single month, or sums across all 12 months of the year ('all months' option)
+  function getMHForGroupMonth(groupKey, monthIdx, year){
+    if(monthIdx!=='all') return getMHForGroupSingleMonth(groupKey,monthIdx,year);
+    let given=0,actual=0,capacity=0;
+    for(let mo=0;mo<12;mo++){
+      const r=getMHForGroupSingleMonth(groupKey,mo,year);
+      given+=r.given; actual+=r.actual; capacity+=r.capacity;
+    }
+    return {given,actual,capacity,unutilised:Math.max(0,capacity-actual)};
+  }
+  function makePieChart(containerId, label, given, actual, unutilised){
     const wrap=document.createElement('div');
     wrap.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;max-width:200px';
     const title=document.createElement('div');
@@ -1670,36 +1672,51 @@ function renderDashboard(){
     canvasBox.appendChild(canvas);
     wrap.appendChild(title);
     wrap.appendChild(canvasBox);
-    const total=given+actual;
+    const total=given+actual+unutilised;
     const givenPct=total>0?Math.round(given/total*100):0;
     const actualPct=total>0?Math.round(actual/total*100):0;
+    const unutilisedPct=total>0?Math.round(unutilised/total*100):0;
     const sub=document.createElement('div');
     sub.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--text-muted);margin-top:6px';
-    sub.innerHTML=`<span><span style="color:var(--accent)">■</span> Project: ${given} (${givenPct}%)</span><span><span style="color:#5dade2">■</span> Req: ${actual} (${actualPct}%)</span>`;
+    sub.innerHTML=`<span><span style="color:var(--accent)">■</span> Project: ${given} (${givenPct}%)</span><span><span style="color:#5dade2">■</span> Req: ${actual} (${actualPct}%)</span><span><span style="color:#58d68d">■</span> Unutilised: ${unutilised} (${unutilisedPct}%)</span>`;
     wrap.appendChild(sub);
-    return {wrap, canvas, given, actual};
+    return {wrap, canvas, given, actual, unutilised};
   }
 
+  // Only these 3 aggregate groups are shown — individual engineer sections removed per request
   const allGroups=[
     {key:'all',label:'All Staff'},
     {key:'__engineers__',label:'All Engineers'},
-    {key:'__dd__',label:'Designers & Drafters'},
-    ...engSections.map(s=>({key:s,label:s}))
+    {key:'__dd__',label:'Designers & Drafters'}
   ];
 
+  // Total Available MH (unutilised) tiles for the selected month/year window
+  const avail_all=getMHForGroupMonth('all',selMonth,selYear);
+  const avail_eng=getMHForGroupMonth('__engineers__',selMonth,selYear);
+  const avail_dd=getMHForGroupMonth('__dd__',selMonth,selYear);
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-val">${data.staff.length}</div><div class="stat-label">Total Staff</div></div>
+    <div class="stat-card"><div class="stat-val">${data.projects.length}</div><div class="stat-label">Total Projects</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHGiven.toLocaleString()}</div><div class="stat-label">Total MH Project</div></div>
+    <div class="stat-card"><div class="stat-val">${totalMHActual.toLocaleString()}</div><div class="stat-label">Total MH Required</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#58d68d">${avail_all.unutilised.toLocaleString()}</div><div class="stat-label">Total Available MH (All Staff)</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#58d68d">${avail_eng.unutilised.toLocaleString()}</div><div class="stat-label">Total Available MH (All Engineers)</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#58d68d">${avail_dd.unutilised.toLocaleString()}</div><div class="stat-label">Total Available MH (D&D)</div></div>
+  `;
+
   allGroups.forEach((g,gi)=>{
-    const {given,actual}=getMHForGroupMonth(g.key,selMonth,selYear);
+    const {given,actual,unutilised}=getMHForGroupMonth(g.key,selMonth,selYear);
     const cid='dash-pie-'+gi;
-    const {wrap,canvas}=makePieChart(cid,g.label+' — '+monthLabel,given,actual);
+    const {wrap,canvas}=makePieChart(cid,g.label+' — '+monthLabel,given,actual,unutilised);
     mhGrid.appendChild(wrap);
     setTimeout(()=>{
       if(!canvas.getContext) return;
-      const total=given+actual;
+      const total=given+actual+unutilised;
       const inst=new Chart(canvas.getContext('2d'),{
         type:'pie',
         data:{
-          labels:['MH Project','MH Required'],
-          datasets:[{data:[given,actual],backgroundColor:['rgba(232,160,32,.85)','rgba(93,173,226,.85)'],borderColor:['#e8a020','#5dade2'],borderWidth:2}]
+          labels:['MH Project','MH Required','Unutilised MH'],
+          datasets:[{data:[given,actual,unutilised],backgroundColor:['rgba(232,160,32,.85)','rgba(93,173,226,.85)','rgba(88,214,141,.85)'],borderColor:['#e8a020','#5dade2','#58d68d'],borderWidth:2}]
         },
         options:{
           responsive:true,
@@ -1725,7 +1742,7 @@ function renderDashboard(){
   const expColors=['#e8a020','#5dade2','#58d68d','#af7ac5','#ec7063'];
   const expCounts=expRanges.map(r=>staffForStatus.filter(s=>(+s.exp||0)>=r.min&&(+s.exp||0)<=r.max).length);
 
-  const sectionsForDropdown=[...new Set(data.staff.map(s=>s.section).filter(Boolean))].sort();
+  const sectionsForDropdown=[...new Set(data.staff.filter(s=>s.category==='engineer').map(s=>s.section).filter(Boolean))].sort();
   const statusColumn=document.getElementById('dash-status-column');
   statusColumn.innerHTML=`<div class="card" style="margin-bottom:16px">
       <div class="form-group" style="margin-bottom:14px">
@@ -1782,71 +1799,77 @@ async function exportDashboardPDF(){
   const {jsPDF}=window.jspdf;
   const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const margin=10;
+  const gap=6; // gap in mm between stacked sections on the same page
   const pageW=pdf.internal.pageSize.getWidth();
   const pageH=pdf.internal.pageSize.getHeight();
   const usableW=pageW-margin*2;
-  const usableH=pageH-margin*2;
-  let addedFirstPage=false;
+  let cursorY=margin;
+  let pageStarted=false;
 
   async function capture(el, scale){
-    return await html2canvas(el,{scale:scale||1.1,useCORS:true,backgroundColor:'#0a0a0a'});
+    return await html2canvas(el,{scale:scale||1.0,useCORS:true,backgroundColor:'#0a0a0a'});
   }
 
-  // Draws a canvas onto the current page starting at yMM; if it doesn't fit,
-  // slices it across as many additional pages as needed. Returns nothing —
-  // always leaves the cursor ready for a fresh page afterwards.
-  function addCanvasPaged(canvas, startNewPage){
-    if(startNewPage && addedFirstPage) pdf.addPage('a4','portrait');
-    addedFirstPage=true;
+  function newPage(){
+    if(pageStarted) pdf.addPage('a4','portrait');
+    pageStarted=true;
+    cursorY=margin;
+  }
+
+  // Force a fresh page for the next section (used between logical groups, e.g. before "MH Load" page)
+  function startNewPage(){
+    if(cursorY>margin) newPage();
+  }
+
+  // Places a canvas at the current cursor, stacking under previous content on the same page when it fits.
+  // Starts a new page if it doesn't fit in the remaining space, and slices across pages if it's taller than a full page.
+  function placeCanvas(canvas){
+    if(!pageStarted) newPage();
     const ratio=usableW/canvas.width;
     const fullH=canvas.height*ratio;
-    if(fullH<=usableH){
-      pdf.addImage(canvas.toDataURL('image/png'),'PNG',margin,margin,usableW,fullH);
+    let available=pageH-margin-cursorY;
+    if(fullH>available && cursorY>margin){
+      newPage();
+      available=pageH-margin-cursorY;
+    }
+    if(fullH<=available){
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',margin,cursorY,usableW,fullH);
+      cursorY+=fullH+gap;
       return;
     }
-    const rowPx=Math.floor(usableH/ratio);
-    let yPx=0, page=0;
+    // Still taller than one full blank page — slice across as many pages as needed.
+    let yPx=0;
     while(yPx<canvas.height){
-      if(page>0) pdf.addPage('a4','portrait');
-      const sliceH=Math.min(rowPx,canvas.height-yPx);
+      const availPx=Math.floor((pageH-margin-cursorY)/ratio);
+      const sliceH=Math.min(availPx,canvas.height-yPx);
       const sc=document.createElement('canvas');
       sc.width=canvas.width; sc.height=sliceH;
       sc.getContext('2d').drawImage(canvas,0,yPx,canvas.width,sliceH,0,0,canvas.width,sliceH);
-      pdf.addImage(sc.toDataURL('image/png'),'PNG',margin,margin,usableW,sliceH*ratio);
-      yPx+=sliceH; page++;
+      pdf.addImage(sc.toDataURL('image/png'),'PNG',margin,cursorY,usableW,sliceH*ratio);
+      cursorY+=sliceH*ratio+gap;
+      yPx+=sliceH;
+      if(yPx<canvas.height) newPage();
     }
   }
 
   try{
     toast('Generating PDF — please wait...');
 
-    // PAGE 1: summary stats + section/status/experience pie charts (compact scale)
+    // PAGE 1: summary stats + section/status/experience pie charts, stacked on one page
     const statsEl=document.getElementById('dash-stats');
     const chartsEl=document.getElementById('dash-charts-row');
-    if(statsEl){
-      const statsCanvas=await capture(statsEl,1.4);
-      addCanvasPaged(statsCanvas,true);
-    }
-    if(chartsEl){
-      const chartsCanvas=await capture(chartsEl,1.0);
-      addCanvasPaged(chartsCanvas,true);
-    }
+    if(statsEl) placeCanvas(await capture(statsEl,1.2));
+    if(chartsEl) placeCanvas(await capture(chartsEl,0.9));
 
-    // PAGE 2: predictive analysis / MH load forecast table only
+    // PAGE 2: MH Load + Capacity & Workload Analysis, stacked together on one page
+    startNewPage();
     const forecastMhEl=document.getElementById('forecast-mh-section');
-    if(forecastMhEl){
-      const c=await capture(forecastMhEl,1.1);
-      addCanvasPaged(c,true);
-    }
-
-    // PAGE 3: capacity & workload analysis (bottlenecks, load balancing, overtime)
+    if(forecastMhEl) placeCanvas(await capture(forecastMhEl,0.9));
     const forecastCapacityEl=document.getElementById('forecast-capacity-section');
-    if(forecastCapacityEl){
-      const c=await capture(forecastCapacityEl,1.1);
-      addCanvasPaged(c,true);
-    }
+    if(forecastCapacityEl) placeCanvas(await capture(forecastCapacityEl,0.9));
 
-    // PAGE 4+: staff availability table only (sliced across pages if long)
+    // PAGE 3+: full staff availability list (spills onto more pages automatically if long)
+    startNewPage();
     const forecastStaffEl=document.getElementById('forecast-staff-section');
     if(forecastStaffEl){
       // The table sits in a scrollable max-height container — expand it
@@ -1855,9 +1878,9 @@ async function exportDashboardPDF(){
       const prevMaxHeight=scrollWrap?scrollWrap.style.maxHeight:null;
       const prevOverflow=scrollWrap?scrollWrap.style.overflowY:null;
       if(scrollWrap){ scrollWrap.style.maxHeight='none'; scrollWrap.style.overflowY='visible'; }
-      const c=await capture(forecastStaffEl,1.0);
+      const c=await capture(forecastStaffEl,0.9);
       if(scrollWrap){ scrollWrap.style.maxHeight=prevMaxHeight; scrollWrap.style.overflowY=prevOverflow; }
-      addCanvasPaged(c,true);
+      placeCanvas(c);
     }
 
     pdf.save('Dashboard_'+new Date().toISOString().slice(0,10)+'.pdf');
@@ -1953,7 +1976,7 @@ function renderForecast(){
   let html=`<div class="card" style="margin-bottom:16px" id="forecast-mh-section">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <span style="font-size:18px">📊</span>
-      <h2 style="margin:0;font-size:16px">Predictive Analysis & Forecast</h2>
+      <h2 style="margin:0;font-size:16px">MH Load</h2>
       <span style="font-size:11px;color:var(--text-muted);margin-left:auto">Based on current project data</span>
     </div>`;
 
@@ -1962,7 +1985,7 @@ function renderForecast(){
   const allForecastMonths=[curMonthObj, ...nextMonths];
 
   // Section MH Load Forecast table
-  html+=`<h3 style="margin-bottom:10px">MH Load Forecast — Current & Next 3 Months</h3>
+  html+=`<h3 style="margin-bottom:10px">MH Load — Current & Next 3 Months</h3>
     <div class="table-wrap" style="margin-bottom:20px"><table>
     <thead><tr><th>Section</th>
       ${allForecastMonths.map((m,i)=>`<th style="${i===0?'background:rgba(232,160,32,.15);':''}">${m.label}<br><span style="font-size:10px;font-weight:400;color:var(--text-muted)">Forecast / Capacity</span></th>`).join('')}
@@ -2067,38 +2090,6 @@ function renderForecast(){
     html+=`<div class="empty" style="padding:12px 0 20px">No clear over/under-capacity pairing this month.</div>`;
   }
 
-  // 3. Overtime cost estimator — current month only
-  html+=`<h3 style="margin-bottom:10px">Overtime Cost Estimator — ${esc(curMonthObj.label.replace(' (Now)',''))}</h3>
-    <div class="form-group" style="max-width:220px;margin-bottom:12px">
-      <label>Overtime Rate (per MH)</label>
-      <input id="ot-rate-input" type="number" min="0" step="0.5" value="${otRatePerHour}" oninput="otRatePerHour=+this.value||0; renderOvertimeResults();">
-    </div>
-    <div id="overtime-results"></div>`;
-
-  // Renders only the results table/summary — never touches #ot-rate-input, so typing never loses cursor position.
-  function renderOvertimeResults(){
-    const el=document.getElementById('overtime-results');
-    if(!el) return;
-    const overtimeRows=forecastGroups.map(g=>{
-      const {forecastMH,capacity}=getForecastMH(g.key,curMonth,curYear);
-      const pct=capacity>0?Math.round(forecastMH/capacity*100):(forecastMH>0?999:0);
-      const otHours=Math.max(0,forecastMH-capacity);
-      return {label:g.label,pct,otHours,otCost:otHours*otRatePerHour};
-    }).filter(r=>r.pct>=90); // matches the same >90% warning threshold used in the MH Load Forecast table above
-    if(overtimeRows.length){
-      const totalHours=overtimeRows.reduce((a,r)=>a+r.otHours,0);
-      const totalCost=overtimeRows.reduce((a,r)=>a+r.otCost,0);
-      el.innerHTML=`<div class="table-wrap" style="margin-bottom:8px"><table>
-        <thead><tr><th>Section</th><th>Load %</th><th>Overtime Hours</th><th>Estimated Cost</th></tr></thead><tbody>
-        ${overtimeRows.map(r=>`<tr><td>${esc(r.label)}</td><td style="color:${r.pct>=100?'#ec7063':'#e8a020'};font-weight:600">${r.pct}%</td><td>${r.otHours.toLocaleString()}</td><td>${otRatePerHour>0?r.otCost.toLocaleString(undefined,{maximumFractionDigits:2}):'-'}</td></tr>`).join('')}
-        </tbody></table></div>
-        <div style="font-size:12px;color:var(--text-muted)">Total estimated overtime: <strong style="color:var(--accent)">${totalHours.toLocaleString()} hrs</strong>${otRatePerHour>0?` &nbsp;|&nbsp; Estimated cost: <strong style="color:var(--accent)">${totalCost.toLocaleString(undefined,{maximumFractionDigits:2})}</strong>`:''}</div>`;
-    } else {
-      el.innerHTML=`<div class="empty" style="padding:12px 0">No sections are forecasted to exceed capacity this month.</div>`;
-    }
-  }
-  // Expose globally so the input's oninput handler (fired well after this closure runs) can call the latest version.
-  window.renderOvertimeResults=renderOvertimeResults;
   html+=`</div>`; // close #forecast-capacity-section card
 
   html+=`<div class="card" id="forecast-staff-section">`;
@@ -2186,12 +2177,9 @@ function renderForecast(){
       <span style="color:#ec7063">■</span> Occupied beyond 2 months
     </div>`;
 
-  html+=`<div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;margin-top:8px">
-    ⓘ Forecast is based on existing project progress percentages and manhour allocations. Red = &gt;90% capacity, Orange = &gt;70%, Green = within capacity.
-  </div></div>`;
+  html+=`</div>`;
 
   container.innerHTML=html;
-  renderOvertimeResults();
 }
 
 // ===================== CHART =====================
@@ -2847,8 +2835,8 @@ function exportOrgPDF(){
     const imgData=canvas.toDataURL('image/png');
     const imgW=canvas.width;
     const imgH=canvas.height;
-    // A3 landscape: 420 x 297 mm
-    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
+    // A2 landscape: 594 x 420 mm
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a2'});
     const pageW=pdf.internal.pageSize.getWidth();
     const pageH=pdf.internal.pageSize.getHeight();
     const margin=10;
@@ -2864,7 +2852,7 @@ function exportOrgPDF(){
       const rowPx=Math.floor(usableH/ratio);
       let yPx=0; let page=0;
       while(yPx<imgH){
-        if(page>0) pdf.addPage('a3','landscape');
+        if(page>0) pdf.addPage('a2','landscape');
         const sliceH=Math.min(rowPx,imgH-yPx);
         const sc=document.createElement('canvas');
         sc.width=imgW; sc.height=sliceH;
