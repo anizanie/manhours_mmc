@@ -761,6 +761,17 @@ function onStaffCategoryChange(){
   }
 }
 
+function findDuplicateStaff(name,category,section,role,status,exp,excludeId){
+  return data.staff.find(s=>
+    s.id!==excludeId &&
+    s.name.trim().toLowerCase()===name.trim().toLowerCase() &&
+    s.category===category &&
+    s.section===section &&
+    s.role===role &&
+    s.status===status &&
+    (+s.exp||0)===(+exp||0)
+  );
+}
 function saveStaff(){
   const name=document.getElementById('staff-name').value.trim();
   const category=document.getElementById('staff-category').value;
@@ -770,6 +781,11 @@ function saveStaff(){
   const exp=+document.getElementById('staff-exp').value||0;
   if(!name||!category||!section||!role||!status){ toast('Please fill all staff fields'); return; }
   const editId=document.getElementById('staff-edit-id').value;
+  const dup=findDuplicateStaff(name,category,section,role,status,exp,editId);
+  if(dup){
+    alert(`Duplicate Entry\n\n"${name}" already exists with identical details:\n\nSection: ${dup.section}\nRole: ${dup.role}\nStatus: ${dup.status}\nExperience: ${dup.exp||0} yrs\n\nChange at least one detail before saving.`);
+    return;
+  }
   if(editId){
     const s=data.staff.find(x=>x.id===editId);
     if(s){ s.name=name; s.category=category; s.section=section; s.role=role; s.status=status; s.exp=exp; }
@@ -815,7 +831,7 @@ function staffProjectCount(staffId){
 function renderStaffTable(){
   const tbody=document.getElementById('staff-table');
   const staffSearch=(document.getElementById('staff-list-search')?.value||'').toLowerCase();
-  const staffFiltered=sortStaffEngFirst(data.staff.filter(s=>!staffSearch||s.name.toLowerCase().includes(staffSearch)||s.section.toLowerCase().includes(staffSearch)||s.role.toLowerCase().includes(staffSearch)));
+  const staffFiltered=[...data.staff].reverse().filter(s=>!staffSearch||s.name.toLowerCase().includes(staffSearch)||s.section.toLowerCase().includes(staffSearch)||s.role.toLowerCase().includes(staffSearch));
   if(!staffFiltered.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">No staff found.</td></tr>'; return; }
   tbody.innerHTML=staffFiltered.map((s,i)=>`
 
@@ -900,6 +916,13 @@ function addExtraMonth(){
 let dutyStaffIds=[];
 
  
+function findDuplicateProject(pid,name,excludeId){
+  return data.projects.find(p=>
+    p.id!==excludeId &&
+    p.projectId.trim().toLowerCase()===pid.trim().toLowerCase() &&
+    p.name.trim().toLowerCase()===name.trim().toLowerCase()
+  );
+}
 function saveProject(){
   const pid=document.getElementById('proj-id-input').value.trim();
   const name=document.getElementById('proj-name').value.trim();
@@ -909,6 +932,12 @@ function saveProject(){
   const endVal=document.getElementById('proj-end').value.trim();
   if(!pid||!name){ toast('Fill Project ID and Name'); return; }
   const editId=document.getElementById('proj-edit-id').value;
+  const dup=findDuplicateProject(pid,name,editId);
+  if(dup){
+    const dupLead=(Array.isArray(dup.lead)?dup.lead:[]).map(id=>data.staff.find(s=>s.id===id)?.name).filter(Boolean).join(', ')||'-';
+    alert(`Duplicate Entry\n\nA project with Project ID "${dup.projectId}" and Name "${dup.name}" already exists:\n\nLead: ${dupLead}\nPeriod: ${dup.startDate} – ${dup.endDate}\n\nUse a different Project ID or Name.`);
+    return;
+  }
   const s=parseMMYYYY(startVal);
   const e=parseMMYYYY(endVal);
   const duration=s&&e&&diffMonths(s,e)>0?diffMonths(s,e):0;
@@ -1069,7 +1098,7 @@ function renderProjTable(){
   refreshLeadDropdown();
   const tbody=document.getElementById('proj-table');
   const projSearch=(document.getElementById('proj-list-search')?.value||'').toLowerCase();
-  const projsFiltered=data.projects.filter(p=>!projSearch||p.name.toLowerCase().includes(projSearch)||p.projectId.toLowerCase().includes(projSearch));
+  const projsFiltered=[...data.projects].reverse().filter(p=>!projSearch||p.name.toLowerCase().includes(projSearch)||p.projectId.toLowerCase().includes(projSearch));
   if(!projsFiltered.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">No projects found.</td></tr>'; return; }
   tbody.innerHTML=projsFiltered.map(p=>{
     const leadIds=Array.isArray(p.lead)?p.lead:(p.lead?[p.lead]:[]);
